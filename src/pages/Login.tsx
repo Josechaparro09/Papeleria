@@ -87,7 +87,7 @@ function Login() {
           <div className="text-center text-sm">
             <span className="text-gray-600">¿No tienes una cuenta?</span>{' '}
             <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
-              Registrarse
+              Registrarse.
             </Link>
           </div>
         </form>
