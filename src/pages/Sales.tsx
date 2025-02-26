@@ -27,6 +27,7 @@ import { useServices } from "../hooks/useServices"
 import type { Sale, SaleItem } from "../types/database"
 import { format, subDays, isAfter, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
+import formatMoney from "../utils/format"
 
 function Sales() {
   const { sales, loading, addSale, deleteSale } = useSales()
@@ -36,7 +37,7 @@ function Sales() {
   const [showViewModal, setShowViewModal] = useState(false)
   const [currentSale, setCurrentSale] = useState<Sale | null>(null)
   const [saleType, setSaleType] = useState<"product" | "service">("product")
-  const [saleDate, setSaleDate] = useState(format(new Date(), "yyyy-MM-dd"))
+  const [saleDate, setSaleDate] = useState(format(new Date(), "yyyy-MM-dd HH:mm"))
   const [saleItems, setSaleItems] = useState<
     {
       id: string
@@ -305,7 +306,7 @@ function Sales() {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm text-gray-500">Total ventas</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">${totalSalesAmount.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{formatMoney(totalSalesAmount)}</p>
             </div>
             <div className="p-2 bg-blue-100 rounded-full">
               <DollarSign className="h-5 w-5 text-blue-600" />
@@ -512,7 +513,7 @@ function Sales() {
                             </div>
                             <div className="flex items-center mt-1 text-xs text-gray-500">
                               <Clock className="h-3 w-3 mr-1" />
-                              {format(new Date(sale.date), "HH:mm")}
+                              {format(new Date(sale.created_at), "HH:mm")}
                               <span className="mx-1">•</span>
                               <span className="text-gray-500">ID: {sale.id.slice(0, 8)}</span>
                             </div>
@@ -525,7 +526,7 @@ function Sales() {
                         </div>
                         <div className="flex items-center space-x-4">
                           <div className="text-right">
-                            <p className="font-medium text-blue-600 text-lg">${sale.total.toFixed(2)}</p>
+                            <p className="font-medium text-blue-600 text-lg">{formatMoney(sale.total)}</p>
                           </div>
                           <div className="flex space-x-1">
                             <button
@@ -652,12 +653,12 @@ function Sales() {
                       {saleType === "product"
                         ? products.map((product) => (
                             <option key={product.id} value={product.id}>
-                              {product.name} - ${product.price.toFixed(2)}
+                              {product.name} - {formatMoney(product.price)}
                             </option>
                           ))
                         : services.map((service) => (
                             <option key={service.id} value={service.id}>
-                              {service.name} - ${service.price.toFixed(2)}
+                              {service.name} - {formatMoney(service.price)}
                             </option>
                           ))}
                     </select>
@@ -724,13 +725,13 @@ function Sales() {
                             <tr key={index} className="hover:bg-gray-50">
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.name}</td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                                ${item.price.toFixed(2)}
+                                {formatMoney(item.price)}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
                                 {item.quantity}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-                                ${(item.price * item.quantity).toFixed(2)}
+                                {formatMoney((item.price * item.quantity))}
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <button
@@ -749,7 +750,7 @@ function Sales() {
                               Total:
                             </td>
                             <td className="px-6 py-3 text-right text-sm font-medium text-blue-600">
-                              ${calculateTotal().toFixed(2)}
+                              {formatMoney(calculateTotal())}
                             </td>
                             <td></td>
                           </tr>
@@ -834,7 +835,7 @@ function Sales() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Total</p>
-                    <p className="font-medium text-blue-600 text-lg">${currentSale.total.toFixed(2)}</p>
+                    <p className="font-medium text-blue-600 text-lg">{formatMoney(currentSale.total)}</p>
                   </div>
                 </div>
               </div>
@@ -867,13 +868,13 @@ function Sales() {
                         <tr key={index} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{getItemName(item)}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                            ${item.price.toFixed(2)}
+                            {formatMoney(item.price)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
                             {item.quantity}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-                            ${(item.price * item.quantity).toFixed(2)}
+                            {formatMoney((item.price * item.quantity))}
                           </td>
                         </tr>
                       ))}
@@ -884,7 +885,7 @@ function Sales() {
                           Total:
                         </td>
                         <td className="px-6 py-3 text-right text-sm font-medium text-blue-600">
-                          ${currentSale.total.toFixed(2)}
+                          {formatMoney(currentSale.total)}
                         </td>
                       </tr>
                     </tfoot>

@@ -17,6 +17,7 @@ import {
 } from "lucide-react"
 import { useServices } from "../hooks/useServices"
 import type { Service } from "../types/database"
+import formatMoney from "../utils/format"
 
 function Services() {
   const { services, loading, addService, updateService, deleteService } = useServices()
@@ -199,7 +200,7 @@ function Services() {
             <div>
               <p className="text-sm text-gray-500">Precio promedio</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
-                ${filteredServices.length > 0 ? (totalServicesValue / filteredServices.length).toFixed(2) : "0.00"}
+                {filteredServices.length > 0 ? formatMoney((totalServicesValue / filteredServices.length)) : "0.00"}
               </p>
             </div>
             <div className="p-2 bg-green-100 rounded-full">
@@ -213,7 +214,7 @@ function Services() {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm text-gray-500">Valor total</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">${totalServicesValue.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{formatMoney(totalServicesValue)}</p>
             </div>
             <div className="p-2 bg-blue-100 rounded-full">
               <FileText className="h-5 w-5 text-blue-600" />
@@ -322,8 +323,7 @@ function Services() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center text-sm font-medium">
-                        <DollarSign className="h-4 w-4 text-gray-400 mr-1" />
-                        {service.price.toFixed(2)}
+                      {formatMoney(service.price)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">

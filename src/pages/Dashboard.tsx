@@ -19,6 +19,7 @@ import { useSales } from "../hooks/useSales"
 import { useProducts } from "../hooks/useProducts"
 import { format } from "date-fns"
 import { Link } from "react-router-dom"
+import formatMoney from "../utils/format"
 
 function Dashboard() {
   const { stats, loading } = useDashboard()
@@ -92,7 +93,7 @@ function Dashboard() {
           <div className="bg-white p-6 rounded-lg shadow-sm border border-l-4 border-l-green-500">
             <p className="text-sm font-medium text-gray-500">Ventas del día</p>
             <div className="mt-2 flex items-center justify-between">
-              <span className="text-2xl font-bold">${stats.dailySales.toFixed(2)}</span>
+              <span className="text-2xl font-bold">{formatMoney(stats.dailySales)}</span>
               <div className="p-2 bg-green-50 rounded-full">
                 <TrendingUp className="text-green-500 h-5 w-5" />
               </div>
@@ -125,7 +126,7 @@ function Dashboard() {
           <div className="bg-white p-6 rounded-lg shadow-sm border border-l-4 border-l-blue-500">
             <p className="text-sm font-medium text-gray-500">Ventas del mes</p>
             <div className="mt-2 flex items-center justify-between">
-              <span className="text-2xl font-bold">${stats.monthlySales.toFixed(2)}</span>
+              <span className="text-2xl font-bold">{formatMoney(stats.monthlySales)}</span>
               <div className="p-2 bg-blue-50 rounded-full">
                 <Receipt className="text-blue-500 h-5 w-5" />
               </div>
@@ -139,7 +140,7 @@ function Dashboard() {
           <div className="bg-white p-6 rounded-lg shadow-sm border border-l-4 border-l-red-500">
             <p className="text-sm font-medium text-gray-500">Gastos del mes</p>
             <div className="mt-2 flex items-center justify-between">
-              <span className="text-2xl font-bold">${stats.monthlyExpenses.toFixed(2)}</span>
+              <span className="text-2xl font-bold">{formatMoney(stats.monthlyExpenses)}</span>
               <div className="p-2 bg-red-50 rounded-full">
                 <DollarSign className="text-red-500 h-5 w-5" />
               </div>
@@ -165,14 +166,14 @@ function Dashboard() {
                   <ShoppingCart className="h-4 w-4 mr-1" />
                   Ventas
                 </p>
-                <p className="text-2xl font-bold text-blue-700">${stats.monthlySales.toFixed(2)}</p>
+                <p className="text-2xl font-bold text-blue-700">{formatMoney(stats.monthlySales)}</p>
               </div>
               <div className="bg-gradient-to-br from-red-50 to-red-100 p-4 rounded-lg border border-red-200">
                 <p className="text-sm text-red-700 font-medium mb-1 flex items-center">
                   <DollarSign className="h-4 w-4 mr-1" />
                   Gastos
                 </p>
-                <p className="text-2xl font-bold text-red-700">${stats.monthlyExpenses.toFixed(2)}</p>
+                <p className="text-2xl font-bold text-red-700">{formatMoney(stats.monthlyExpenses)}</p>
               </div>
               <div className="bg-gradient-to-br from-green-50 to-green-100 p-4 rounded-lg border border-green-200">
                 <p className="text-sm text-green-700 font-medium mb-1 flex items-center">
@@ -180,7 +181,7 @@ function Dashboard() {
                   Ganancia
                 </p>
                 <p className="text-2xl font-bold text-green-700">
-                  ${(stats.monthlySales - stats.monthlyExpenses).toFixed(2)}
+                  {formatMoney((stats.monthlySales - stats.monthlyExpenses))}
                 </p>
                 <div className="flex items-center mt-1">
                   {isPositiveChange ? (

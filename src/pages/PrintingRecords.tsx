@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { usePrintingRecords } from '../hooks/usePrintingRecords';
 import { PrintingRecord } from '../types/database';
+import formatMoney from '../utils/format';
 
 // Helper function to format date
 const formatDate = (date: Date | string) => {
@@ -277,18 +278,18 @@ function PrintingRecords() {
                       </div>
                       <div>
                         <span className="text-gray-500">Costo:</span>
-                        <span className="ml-1 font-medium">${monthlyCost.toFixed(2)}</span>
+                        <span className="ml-1 font-medium">{formatMoney(monthlyCost)}</span>
                       </div>
                       <div>
                         <span className="text-gray-500">Ingresos:</span>
-                        <span className="ml-1 font-medium">${monthlyIncome.toFixed(2)}</span>
+                        <span className="ml-1 font-medium">{formatMoney(monthlyIncome)}</span>
                       </div>
                       <div className="flex items-center">
                         <span className="text-gray-500 mr-1">
                           {isProfitableMonth ? "Ganancia:" : "Pérdida:"}
                         </span>
                         <span className={`font-medium flex items-center ${isProfitableMonth ? "text-green-600" : "text-red-600"}`}>
-                          ${Math.abs(monthlyProfit).toFixed(2)}
+                          {formatMoney(Math.abs(monthlyProfit))}
                           {isProfitableMonth ? (
                             <TrendingUp size={16} className="ml-1" />
                           ) : (

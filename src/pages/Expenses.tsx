@@ -28,6 +28,7 @@ import { useExpenses } from "../hooks/useExpenses"
 import type { Expense } from "../types/database"
 import { format, subDays, isAfter, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
+import formatMoney from "../utils/format"
 
 function Expenses() {
   const { expenses, loading, addExpense, updateExpense, deleteExpense } = useExpenses()
@@ -292,7 +293,7 @@ function Expenses() {
           <div className="flex justify-between items-start">
             <div>
               <p className="text-sm text-gray-500">Total gastos</p>
-              <p className="text-2xl font-bold text-gray-900 mt-1">${totalExpensesAmount.toFixed(2)}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{formatMoney(totalExpensesAmount)}</p>
             </div>
             <div className="p-2 bg-rose-100 rounded-full">
               <DollarSign className="h-5 w-5 text-rose-600" />
@@ -314,7 +315,7 @@ function Expenses() {
             </div>
           </div>
           <p className="text-xs text-gray-500 mt-2">
-            ${largestCategory.amount.toFixed(2)} en {largestCategory.name.toLowerCase()}
+            {formatMoney(largestCategory.amount)} en {largestCategory.name.toLowerCase()}
           </p>
         </div>
 
@@ -323,9 +324,9 @@ function Expenses() {
             <div>
               <p className="text-sm text-gray-500">Promedio mensual</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
-                $
+                
                 {filteredExpenses.length > 0
-                  ? (totalExpensesAmount / (Object.keys(groupedExpenses).length || 1)).toFixed(2)
+                  ? formatMoney((totalExpensesAmount / (Object.keys(groupedExpenses).length || 1)))
                   : "0.00"}
               </p>
             </div>
@@ -478,7 +479,7 @@ function Expenses() {
                     {groupedExpenses[date].length} {groupedExpenses[date].length === 1 ? "gasto" : "gastos"}
                   </span>
                   <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-rose-100 text-rose-800">
-                    ${groupedExpenses[date].reduce((sum, expense) => sum + expense.amount, 0).toFixed(2)}
+                    {formatMoney(groupedExpenses[date].reduce((sum, expense) => sum + expense.amount, 0))}
                   </span>
                 </div>
                 <div className="overflow-x-auto">
