@@ -51,7 +51,7 @@ function Register() {
         <div className="text-center">
           <Store className="mx-auto h-12 w-12 text-blue-600" />
           <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-            Papelería Manager
+            Papeleria S&M
           </h2>
           <p className="mt-2 text-sm text-gray-600">
             Crea una cuenta para acceder al sistema

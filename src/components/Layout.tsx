@@ -147,7 +147,7 @@ function Layout({ children }: { children: React.ReactNode }) {
             {/* Logo y título */}
             <div className="flex items-center">
               <Store className="h-6 w-6 text-blue-600" />
-              <h1 className="ml-2 text-xl font-bold text-blue-600">Papelería Manager</h1>
+              <h1 className="ml-2 text-xl font-bold text-blue-600">Multiservicios S&M</h1>
             </div>
           </div>
           
