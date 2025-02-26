@@ -49,7 +49,7 @@ export function useExpenses() {
     }
   }
 
-  async function updateExpense(id: string, updates: Partial<Expense>) {
+  async function updateExpense(id: string, updates: Partial<Omit<Expense, 'id' | 'created_at'>>) {
     try {
       const { data, error } = await supabase
         .from('expenses')

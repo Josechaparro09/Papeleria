@@ -49,7 +49,7 @@ export function usePrintingRecords() {
     }
   }
 
-  async function updateRecord(id: string, updates: Partial<PrintingRecord>) {
+  async function updateRecord(id: string, updates: Partial<Omit<PrintingRecord, 'id' | 'created_at'>>) {
     try {
       const { data, error } = await supabase
         .from('printing_records')

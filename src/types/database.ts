@@ -3,7 +3,6 @@ export interface User {
   id: string;
   email: string;
   created_at: string;
-  
 }
 
 export interface Product {
@@ -31,9 +30,8 @@ export interface Sale {
   date: string;
   total: number;
   type: 'product' | 'service';
-  items: SaleItem[];
+  items?: SaleItem[]; // items es opcional porque no es una columna real
   created_at: string;
-  updated_at: string;
 }
 
 export interface SaleItem {
@@ -44,7 +42,6 @@ export interface SaleItem {
   quantity: number;
   price: number;
   created_at: string;
-  updated_at: string;
 }
 
 export interface Expense {
@@ -54,7 +51,6 @@ export interface Expense {
   amount: number;
   category: string;
   created_at: string;
-  updated_at: string;
 }
 
 export interface PrintingRecord {
@@ -64,6 +60,7 @@ export interface PrintingRecord {
   prints: number;
   damaged_sheets: number;
   cost_per_sheet: number;
+  price_per_copy?: number; // Precio por copia (opcional)
+  price_per_print?: number; // Precio por impresión (opcional)
   created_at: string;
-  updated_at: string;
 }

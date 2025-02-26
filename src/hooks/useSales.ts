@@ -34,7 +34,7 @@ export function useSales() {
     }
   }
 
-  async function addSale(sale: Omit<Sale, 'id' | 'created_at'>, items: Omit<SaleItem, 'id' | 'sale_id' | 'created_at'>[]) {
+  async function addSale(sale: Omit<Sale, 'id' | 'created_at' | 'items'>, items: Omit<SaleItem, 'id' | 'sale_id' | 'created_at'>[]) {
     try {
       // Insert sale
       const { data: saleData, error: saleError } = await supabase

@@ -1,4 +1,3 @@
-//scr/hooks/useDashboard.ts
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { format } from 'date-fns';
@@ -55,23 +54,28 @@ export function useDashboard() {
 
       if (expensesError) throw expensesError;
 
-      // Get low stock products
-      const { data: lowStockProducts, error: productsError } = await supabase
+      // Get low stock products - Versión corregida
+      // Obtenemos todos los productos y filtramos en el cliente
+      const { data: allProducts, error: productsError } = await supabase
         .from('products')
-        .select('id')
-        .lte('stock', 'min_stock');
-
+        .select('stock, min_stock');
+        
       if (productsError) throw productsError;
+      
+      // Filtrar los productos con bajo stock en el cliente
+      const lowStockCount = allProducts ? 
+        allProducts.filter(product => product.stock <= product.min_stock).length : 0;
 
       setStats({
         dailySales: dailySales?.reduce((sum, sale) => sum + Number(sale.total), 0) || 0,
         monthlySales: monthlySales?.reduce((sum, sale) => sum + Number(sale.total), 0) || 0,
         monthlyExpenses: monthlyExpenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0,
-        lowStockProducts: lowStockProducts?.length || 0
+        lowStockProducts: lowStockCount
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar estadísticas');
       toast.error('Error al cargar estadísticas del dashboard');
+      console.error('Dashboard error:', err);
     } finally {
       setLoading(false);
     }

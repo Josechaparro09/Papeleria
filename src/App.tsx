@@ -1,21 +1,62 @@
-//src/App.tsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Login from './pages/Login';
-import Dashboard from './pages/Dashboard.tsx';
-import Products from './pages/Products.tsx';
-import Sales from './pages/Sales.tsx';
-import Expenses from './pages/Expenses.tsx';
-import PrintingRecords from './pages/PrintingRecords.tsx';
-import Services from './pages/Services.tsx';
+import Register from './pages/Register';
+import Dashboard from './pages/Dashboard';
+import Products from './pages/Products';
+import Sales from './pages/Sales';
+import Expenses from './pages/Expenses';
+import PrintingRecords from './pages/PrintingRecords';
+import Services from './pages/Services';
 import Layout from './components/Layout';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { Loader2 } from 'lucide-react';
 
+// Componente de carga durante la inicialización de auth
+const LoadingScreen = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="text-center">
+      <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
+      <p className="mt-4 text-gray-600">Cargando...</p>
+    </div>
+  </div>
+);
+
+// Componente de ruta protegida mejorado
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user } = useAuth();
-  if (!user) return <Navigate to="/login" replace />;
+  const { user, loading } = useAuth();
+  
+  // Mostrar pantalla de carga durante la inicialización
+  if (loading) {
+    return <LoadingScreen />;
+  }
+  
+  // Redirigir a login si no hay usuario autenticado
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  
+  // Mostrar el contenido protegido si hay usuario
   return <Layout>{children}</Layout>;
+};
+
+// Componente para rutas públicas (login/register)
+const PublicRoute = ({ children }: { children: React.ReactNode }) => {
+  const { user, loading } = useAuth();
+  
+  // Mostrar pantalla de carga durante la inicialización
+  if (loading) {
+    return <LoadingScreen />;
+  }
+  
+  // Redirigir al dashboard si ya hay sesión
+  if (user) {
+    return <Navigate to="/" replace />;
+  }
+  
+  // Mostrar la ruta pública si no hay sesión
+  return <>{children}</>;
 };
 
 function App() {
@@ -23,7 +64,22 @@ function App() {
     <AuthProvider>
       <Router>
         <Routes>
-          <Route path="/login" element={<Login />} />
+          <Route 
+            path="/login" 
+            element={
+              <PublicRoute>
+                <Login />
+              </PublicRoute>
+            } 
+          />
+          <Route 
+            path="/register" 
+            element={
+              <PublicRoute>
+                <Register />
+              </PublicRoute>
+            } 
+          />
           <Route
             path="/"
             element={
@@ -72,6 +128,8 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* Ruta genérica para manejar rutas no encontradas */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <Toaster position="top-right" />
       </Router>

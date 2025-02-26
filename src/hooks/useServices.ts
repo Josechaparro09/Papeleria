@@ -31,7 +31,7 @@ export function useServices() {
     }
   }
 
-  async function addService(service: Omit<Service, 'id' | 'created_at'>) {
+  async function addService(service: Omit<Service, 'id' | 'created_at' | 'updated_at'>) {
     try {
       const { data, error } = await supabase
         .from('services')
@@ -49,7 +49,7 @@ export function useServices() {
     }
   }
 
-  async function updateService(id: string, updates: Partial<Service>) {
+  async function updateService(id: string, updates: Partial<Omit<Service, 'id' | 'created_at' | 'updated_at'>>) {
     try {
       const { data, error } = await supabase
         .from('services')

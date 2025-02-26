@@ -31,7 +31,7 @@ export function useProducts() {
     }
   }
 
-  async function addProduct(product: Omit<Product, 'id' | 'created_at'>) {
+  async function addProduct(product: Omit<Product, 'id' | 'created_at' | 'updated_at'>) {
     try {
       const { data, error } = await supabase
         .from('products')
@@ -49,7 +49,7 @@ export function useProducts() {
     }
   }
 
-  async function updateProduct(id: string, updates: Partial<Product>) {
+  async function updateProduct(id: string, updates: Partial<Omit<Product, 'id' | 'created_at' | 'updated_at'>>) {
     try {
       const { data, error } = await supabase
         .from('products')
