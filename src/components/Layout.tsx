@@ -320,7 +320,7 @@ function Layout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <div className="flex items-center">
               <Store className="h-6 w-6 text-blue-600" />
-              <h1 className="ml-2 text-lg font-bold text-blue-600">Papelería</h1>
+              <h1 className="ml-2 text-lg font-bold text-blue-600">Multiservicios</h1>
             </div>
             <button 
               onClick={closeMenu} 
