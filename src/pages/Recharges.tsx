@@ -246,15 +246,16 @@ function Recharges() {
               onClick={() => {}}
               className="p-2 rounded-lg border text-gray-700 border-gray-300 hover:bg-gray-50"
               title="Exportar datos"
+              style={{ display: 'none' }}
             >
-              <Download size={16} className="text-gray-600" />
             </button>
             <button
               onClick={() => {}}
               className="p-2 rounded-lg border text-gray-700 border-gray-300 hover:bg-gray-50"
               title="Imprimir reporte"
+              style={{ display: 'none' }}
             >
-              <Printer size={16} className="text-gray-600" />
+              <Printer size={16} className="text-gray-600"/>
             </button>
           </div>
         </div>
