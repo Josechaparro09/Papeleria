@@ -9,7 +9,9 @@ export interface Product {
   id: string;
   name: string;
   description: string;
-  price: number;
+  category?: string;
+  purchase_price: number;
+  public_price: number;
   stock: number;
   min_stock: number;
   created_at: string;
