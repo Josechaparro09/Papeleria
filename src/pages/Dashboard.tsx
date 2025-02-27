@@ -13,6 +13,8 @@ import {
   ArrowDownRight,
   ShoppingCart,
   Clock,
+  Layers,
+  Wrench
 } from "lucide-react"
 import { useDashboard } from "../hooks/useDashboard"
 import { useSales } from "../hooks/useSales"
@@ -26,45 +28,29 @@ function Dashboard() {
   const { sales } = useSales()
   const { products } = useProducts()
 
-  const [popularProducts, setPopularProducts] = useState<{ name: string; count: number }[]>([])
   const [recentSales, setRecentSales] = useState<any[]>([])
 
   useEffect(() => {
-    if (sales.length > 0 && products.length > 0) {
-      const productSales: { [key: string]: number } = {}
-
-      sales.forEach((sale) => {
-        if (sale.type === "product" && sale.items) {
-          sale.items.forEach((item) => {
-            if (item.product_id) {
-              productSales[item.product_id] = (productSales[item.product_id] || 0) + item.quantity
-            }
-          })
-        }
-      })
-
-      const productPopularity = Object.entries(productSales)
-        .map(([productId, count]) => {
-          const product = products.find((p) => p.id === productId)
-          return {
-            name: product ? product.name : "Producto desconocido",
-            count,
-          }
-        })
-        .sort((a, b) => b.count - a.count)
+    if (sales.length > 0) {
+      const recent = [...sales]
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 5)
-
-      setPopularProducts(productPopularity)
-
-      const recent = [...sales].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5)
 
       setRecentSales(recent)
     }
-  }, [sales, products])
+  }, [sales])
 
-  // Calculate profit percentage change (mock data for demonstration)
-  const profitChange = 12.5
-  const isPositiveChange = profitChange > 0
+  // Helper function to get item name for a sale
+  const getItemName = (sale: any) => {
+    if (sale.type === "product" && sale.items) {
+      const itemNames = sale.items.map((item: any) => {
+        const product = products.find(p => p.id === item.product_id)
+        return product ? product.name : "Producto desconocido"
+      })
+      return itemNames.join(", ")
+    }
+    return "Servicio"
+  }
 
   return (
     <div className="space-y-6 p-6 bg-gray-50 min-h-screen">
@@ -131,10 +117,16 @@ function Dashboard() {
                 <Receipt className="text-blue-500 h-5 w-5" />
               </div>
             </div>
-            <p className="mt-2 text-xs text-gray-500 flex items-center">
-              <ArrowUpRight className="text-green-500 h-3 w-3 mr-1" />
-              <span className="text-green-500 font-medium">15.3%</span> más que el mes pasado
-            </p>
+            <div className="mt-2 text-xs text-gray-500">
+              <div className="flex items-center">
+                <ShoppingCart className="h-3 w-3 mr-1" />
+                Productos: {formatMoney(stats.monthlyProductSales)}
+              </div>
+              <div className="flex items-center">
+                <Wrench className="h-3 w-3 mr-1" />
+                Servicios: {formatMoney(stats.monthlyServiceSales)}
+              </div>
+            </div>
           </div>
 
           <div className="bg-white p-6 rounded-lg shadow-sm border border-l-4 border-l-red-500">
@@ -181,16 +173,17 @@ function Dashboard() {
                   Ganancia
                 </p>
                 <p className="text-2xl font-bold text-green-700">
-                  {formatMoney((stats.monthlySales - stats.monthlyExpenses))}
+                  {formatMoney(stats.monthlySales - stats.monthlyExpenses)}
                 </p>
                 <div className="flex items-center mt-1">
-                  {isPositiveChange ? (
+                  {stats.profitMargin >= 0 ? (
                     <ArrowUpRight className="text-green-600 h-3 w-3 mr-1" />
                   ) : (
                     <ArrowDownRight className="text-red-600 h-3 w-3 mr-1" />
                   )}
-                  <span className={`text-xs font-medium ${isPositiveChange ? "text-green-600" : "text-red-600"}`}>
-                    {profitChange}% {isPositiveChange ? "más" : "menos"} que el mes pasado
+                  <span className={`text-xs font-medium ${stats.profitMargin >= 0 ? "text-green-600" : "text-red-600"}`}>
+                    {stats.profitMargin.toFixed(1)}% 
+                    {stats.profitMargin >= 0 ? " más" : " menos"} que el mes pasado
                   </span>
                 </div>
               </div>
@@ -202,19 +195,19 @@ function Dashboard() {
                   <p className="text-sm font-medium text-gray-700">Margen de ganancia</p>
                   <span
                     className={`px-2 py-1 text-xs font-medium rounded-full ${
-                      (((stats.monthlySales - stats.monthlyExpenses) / stats.monthlySales) * 100) > 20
+                      stats.profitMargin > 20
                         ? "bg-green-100 text-green-800"
                         : "bg-yellow-100 text-yellow-800"
                     }`}
                   >
-                    {(((stats.monthlySales - stats.monthlyExpenses) / stats.monthlySales) * 100).toFixed(1)}%
+                    {stats.profitMargin.toFixed(1)}%
                   </span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
                     className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                     style={{
-                      width: `${Math.min(100, ((stats.monthlySales - stats.monthlyExpenses) / stats.monthlySales) * 100)}%`,
+                      width: `${Math.min(100, Math.abs(stats.profitMargin))}%`,
                     }}
                   ></div>
                 </div>
@@ -246,14 +239,14 @@ function Dashboard() {
             <p className="text-sm text-gray-500 mt-1">Los productos más vendidos este mes</p>
           </div>
           <div className="p-6">
-            {popularProducts.length === 0 ? (
+            {stats.topSellingProducts.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Package className="mx-auto h-12 w-12 text-gray-300 mb-2" />
                 <p>No hay productos registrados</p>
               </div>
             ) : (
               <div className="space-y-5">
-                {popularProducts.map((product, index) => (
+                {stats.topSellingProducts.map((product, index) => (
                   <div key={index} className="flex items-center justify-between py-2">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium">
@@ -264,7 +257,7 @@ function Dashboard() {
                       </div>
                     </div>
                     <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                      {product.count} {product.count === 1 ? "unidad" : "unidades"}
+                      {product.total_quantity} {product.total_quantity === 1 ? "unidad" : "unidades"}
                     </span>
                   </div>
                 ))}
@@ -319,10 +312,15 @@ function Dashboard() {
                           <Clock className="h-3 w-3 mr-1" />
                           {format(new Date(sale.date), "dd/MM/yyyy HH:mm")}
                         </div>
+                        {sale.items && sale.items.length > 0 && (
+                          <div className="mt-1 text-xs text-gray-500 line-clamp-1">
+                            {getItemName(sale)}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="text-sm font-medium text-blue-600">${sale.total.toFixed(2)}</span>
+                      <span className="text-sm font-medium text-blue-600">{formatMoney(sale.total)}</span>
                       <p className="text-xs text-gray-500 mt-1">
                         {sale.items?.length || 0} {sale.type === "product" ? "productos" : "servicios"}
                       </p>
@@ -348,4 +346,3 @@ function Dashboard() {
 }
 
 export default Dashboard
-
