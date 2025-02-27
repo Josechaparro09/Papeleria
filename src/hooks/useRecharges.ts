@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { Recharge } from '../types/database';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
+import { getTodayISO } from '../utils/dateHelper';
 
 export function useRecharges() {
   const [recharges, setRecharges] = useState<Recharge[]>([]);
@@ -28,7 +29,7 @@ export function useRecharges() {
       setRecharges(data || []);
       
       // Buscar la recarga de hoy
-      const today = format(new Date(), 'yyyy-MM-dd');
+      const today = getTodayISO();
       const todayRechargeData = data?.find(recharge => recharge.date === today) || null;
       setTodayRecharge(todayRechargeData);
       
@@ -45,22 +46,39 @@ export function useRecharges() {
       // Calcular automáticamente el monto de ventas (opening - closing)
       const salesAmount = recharge.opening_balance - recharge.closing_balance;
       
-      const { data, error } = await supabase
-        .from('recharges')
-        .insert([{
+      // Verificar si ya existe una recarga para la fecha especificada
+      const existingRecharge = recharges.find(r => r.date === recharge.date);
+      
+      if (existingRecharge) {
+        // Si existe, actualizar en lugar de crear
+        return updateRecharge(existingRecharge.id, {
           ...recharge,
           sales_amount: salesAmount
-        }])
-        .select()
-        .single();
+        });
+      } else {
+        // Si no existe, crear nueva
+        const { data, error } = await supabase
+          .from('recharges')
+          .insert([{
+            ...recharge,
+            sales_amount: salesAmount
+          }])
+          .select()
+          .single();
 
-      if (error) throw error;
-      
-      setRecharges([data, ...recharges]);
-      setTodayRecharge(data);
-      
-      toast.success('Registro de recargas añadido exitosamente');
-      return data;
+        if (error) throw error;
+        
+        setRecharges([data, ...recharges]);
+        
+        // Actualizar todayRecharge si corresponde a la fecha actual
+        const today = getTodayISO();
+        if (data.date === today) {
+          setTodayRecharge(data);
+        }
+        
+        toast.success('Registro de recargas añadido exitosamente');
+        return data;
+      }
     } catch (err) {
       toast.error('Error al registrar datos de recargas');
       throw err;
@@ -96,8 +114,12 @@ export function useRecharges() {
       setRecharges(recharges.map(r => r.id === id ? data : r));
       
       // Actualizar todayRecharge si corresponde
-      if (todayRecharge && todayRecharge.id === id) {
+      const today = format(new Date(), 'yyyy-MM-dd');
+      if (data.date === today) {
         setTodayRecharge(data);
+      } else if (todayRecharge && todayRecharge.id === id) {
+        // Si se cambió la fecha y ya no es hoy
+        setTodayRecharge(null);
       }
       
       toast.success('Registro de recargas actualizado exitosamente');
@@ -132,6 +154,11 @@ export function useRecharges() {
     }
   }
 
+  // Función para verificar si existe una recarga en una fecha específica
+  function getRechargeByDate(date: string): Recharge | null {
+    return recharges.find(r => r.date === date) || null;
+  }
+
   return {
     recharges,
     todayRecharge,
@@ -140,6 +167,7 @@ export function useRecharges() {
     fetchRecharges,
     addRecharge,
     updateRecharge,
-    deleteRecharge
+    deleteRecharge,
+    getRechargeByDate
   };
 }

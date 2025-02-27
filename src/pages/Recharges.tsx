@@ -14,23 +14,24 @@ import {
   TrendingUp,
   Download,
   Printer,
-  Smartphone
+  Smartphone,
+  Info
 } from 'lucide-react';
 import { useRecharges } from '../hooks/useRecharges';
 import { Recharge } from '../types/database';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+import { formatDate, getTodayISO } from '../utils/dateHelper';
 import formatMoney from '../utils/format';
-import clsx from 'clsx';
 
 function Recharges() {
-  const { recharges, todayRecharge, loading, addRecharge, updateRecharge, deleteRecharge } = useRecharges();
+  const { recharges, todayRecharge, loading, addRecharge, updateRecharge, deleteRecharge, getRechargeByDate } = useRecharges();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [currentRecharge, setCurrentRecharge] = useState<Recharge | null>(null);
   
   // Obtener la fecha actual en formato ISO (YYYY-MM-DD)
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const today = getTodayISO();
   
   const [formData, setFormData] = useState({
     date: today,
@@ -40,8 +41,30 @@ function Recharges() {
     notes: ''
   });
 
+  // Estado para mostrar alerta de recarga existente
+  const [existingRechargeWarning, setExistingRechargeWarning] = useState<Recharge | null>(null);
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
+    
+    // Si cambia la fecha, verificar si ya existe una recarga para esa fecha
+    if (name === 'date' && value) {
+      const existingRecharge = getRechargeByDate(value);
+      setExistingRechargeWarning(existingRecharge);
+      
+      // Si existe, prellenar el formulario con los datos existentes
+      if (existingRecharge && showAddModal) {
+        setFormData({
+          date: value,
+          opening_balance: existingRecharge.opening_balance.toString(),
+          closing_balance: existingRecharge.closing_balance.toString(),
+          profit: existingRecharge.profit?.toString() || '',
+          notes: existingRecharge.notes || ''
+        });
+        return;
+      }
+    }
+    
     setFormData({ ...formData, [name]: value });
   };
 
@@ -53,23 +76,29 @@ function Recharges() {
       profit: '',
       notes: ''
     });
+    setExistingRechargeWarning(null);
   };
 
   const openAddModal = () => {
     resetForm();
     setShowAddModal(true);
+    
+    // Verificar si ya existe una recarga para la fecha actual
+    const existingRecharge = getRechargeByDate(today);
+    setExistingRechargeWarning(existingRecharge);
   };
 
   const openEditModal = (recharge: Recharge) => {
     setCurrentRecharge(recharge);
     setFormData({
-      date: format(new Date(recharge.date), 'yyyy-MM-dd'),
+      date: recharge.date,  // Usar directamente la fecha ISO sin conversión
       opening_balance: recharge.opening_balance.toString(),
       closing_balance: recharge.closing_balance.toString(),
       profit: recharge.profit?.toString() || '',
       notes: recharge.notes || ''
     });
     setShowEditModal(true);
+    setExistingRechargeWarning(null);
   };
 
   const handleAddRecharge = async (e: React.FormEvent) => {
@@ -143,23 +172,13 @@ function Recharges() {
           </div>
         </div>
         <div>
-          {hasTodayRecharge ? (
-            <button
-              onClick={() => openEditModal(todayRecharge)}
-              className="flex items-center space-x-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors shadow-sm"
-            >
-              <Edit size={20} />
-              <span>Actualizar recargas de hoy</span>
-            </button>
-          ) : (
-            <button
-              onClick={openAddModal}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
-            >
-              <PlusCircle size={20} />
-              <span>Registrar recargas de hoy</span>
-            </button>
-          )}
+          <button
+            onClick={openAddModal}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+          >
+            <PlusCircle size={20} />
+            <span>Registrar Recarga</span>
+          </button>
         </div>
       </div>
 
@@ -292,7 +311,12 @@ function Recharges() {
                         <Calendar className="h-5 w-5 text-gray-400 mr-2" />
                         <div>
                           <div className="text-sm font-medium text-gray-900">
-                            {format(new Date(recharge.date), 'EEEE, d MMMM yyyy', { locale: es })}
+                            {formatDate(recharge.date, 'EEEE, d MMMM yyyy')}
+                            {recharge.date === today && (
+                              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">
+                                Hoy
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs text-gray-500 flex items-center">
                             <Clock className="h-3 w-3 mr-1" />
@@ -362,6 +386,20 @@ function Recharges() {
               </div>
               <p className="text-sm text-gray-500">Registra el balance de recargas del día</p>
             </div>
+            
+            {/* Alerta si ya existe una recarga para la fecha seleccionada */}
+            {existingRechargeWarning && (
+              <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start">
+                <Info className="h-5 w-5 text-amber-500 mr-2 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm text-amber-700 font-medium">Ya existe un registro para esta fecha</p>
+                  <p className="text-xs text-amber-600 mt-1">
+                    Si continúas, actualizarás el registro existente con los nuevos datos.
+                  </p>
+                </div>
+              </div>
+            )}
+            
             <form onSubmit={handleAddRecharge} className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
@@ -392,7 +430,6 @@ function Recharges() {
                     onChange={handleInputChange}
                     required
                     min="0"
-                    step="1000"
                     className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     placeholder="50000"
                   />
@@ -414,7 +451,6 @@ function Recharges() {
                     onChange={handleInputChange}
                     required
                     min="0"
-                    step="1000"
                     className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     placeholder="20000"
                   />
@@ -435,7 +471,6 @@ function Recharges() {
                     value={formData.profit}
                     onChange={handleInputChange}
                     min="0"
-                    step="1000"
                     className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     placeholder="5000"
                   />
@@ -467,7 +502,7 @@ function Recharges() {
                   type="submit"
                   className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
                 >
-                  Guardar
+                  {existingRechargeWarning ? 'Actualizar' : 'Guardar'}
                 </button>
               </div>
             </form>
@@ -526,7 +561,6 @@ function Recharges() {
                     onChange={handleInputChange}
                     required
                     min="0"
-                    step="1000"
                     className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
                   />
                 </div>
@@ -544,7 +578,6 @@ function Recharges() {
                     onChange={handleInputChange}
                     required
                     min="0"
-                    step="1000"
                     className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
                   />
                 </div>
@@ -598,5 +631,4 @@ function Recharges() {
     </div>
   );
 }
-
 export default Recharges;

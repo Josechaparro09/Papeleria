@@ -26,7 +26,7 @@ import {
 } from "lucide-react"
 import { useExpenses } from "../hooks/useExpenses"
 import type { Expense } from "../types/database"
-import { format, subDays, isAfter, parseISO } from "date-fns"
+import { format, subDays, isAfter, parseISO, addDays } from "date-fns"
 import { es } from "date-fns/locale"
 import formatMoney from "../utils/format"
 
@@ -473,7 +473,7 @@ function Expenses() {
                 <div className="px-6 py-3 bg-gray-50 flex items-center">
                   <Calendar className="h-4 w-4 text-gray-500 mr-2" />
                   <h3 className="text-sm font-medium text-gray-700">
-                    {format(new Date(date), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
+                    {format(addDays(new Date(date), 1), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
                   </h3>
                   <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-gray-200 text-gray-800">
                     {groupedExpenses[date].length} {groupedExpenses[date].length === 1 ? "gasto" : "gastos"}
