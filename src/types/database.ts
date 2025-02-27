@@ -1,4 +1,4 @@
-//scr/types/database.ts
+// src/types/database.ts
 export interface User {
   id: string;
   email: string;
@@ -63,4 +63,17 @@ export interface PrintingRecord {
   price_per_copy?: number; // Precio por copia (opcional)
   price_per_print?: number; // Precio por impresión (opcional)
   created_at: string;
+}
+
+// Nueva interfaz para manejar recargas
+export interface Recharge {
+  id: string;
+  date: string;
+  opening_balance: number; // Saldo inicial
+  closing_balance: number; // Saldo final
+  sales_amount: number; // Monto de ventas (calculado automáticamente)
+  profit?: number; // Ganancia opcional
+  notes?: string; // Notas adicionales
+  created_at: string;
+  updated_at?: string;
 }

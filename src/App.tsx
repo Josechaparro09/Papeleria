@@ -9,16 +9,17 @@ import Sales from './pages/Sales';
 import Expenses from './pages/Expenses';
 import PrintingRecords from './pages/PrintingRecords';
 import Services from './pages/Services';
+import Recharges from './pages/Recharges'; // Importar la nueva página
 import Layout from './components/Layout';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
 // Componente de carga durante la inicialización de auth
 const LoadingScreen = () => (
-  <div className="min-h-screen flex items-center justify-center bg-gray-50">
+  <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
     <div className="text-center">
       <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto" />
-      <p className="mt-4 text-gray-600">Cargando...</p>
+      <p className="mt-4 text-gray-600 dark:text-gray-400">Cargando...</p>
     </div>
   </div>
 );
@@ -125,6 +126,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <Services />
+              </ProtectedRoute>
+            }
+          />
+          {/* Nueva ruta para recargas */}
+          <Route
+            path="/recharges"
+            element={
+              <ProtectedRoute>
+                <Recharges />
               </ProtectedRoute>
             }
           />

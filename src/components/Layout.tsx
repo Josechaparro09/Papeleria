@@ -1,4 +1,4 @@
-//src/components/Layout.tsx
+// src/components/Layout.tsx
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,12 +14,14 @@ import {
   X,
   Store,
   ChevronRight,
-  Bell,
   UserCircle,
   ChevronDown,
   Settings,
-  HelpCircle
+  HelpCircle,
+  Search,
+  Smartphone
 } from 'lucide-react';
+import clsx from 'clsx';
 
 interface NavItemProps {
   to: string;
@@ -33,11 +35,12 @@ const NavItem = ({ to, icon, label, active, onClick }: NavItemProps) => (
   <Link
     to={to}
     onClick={onClick}
-    className={`flex items-center px-4 py-3 rounded-lg transition-all duration-200 ${
+    className={clsx(
+      'flex items-center px-4 py-3 rounded-lg transition-all duration-200',
       active
-        ? 'bg-blue-500 text-white shadow-md'
+        ? 'bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md'
         : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'
-    }`}
+    )}
   >
     <div className="flex items-center">
       <div className="mr-3">{icon}</div>
@@ -53,7 +56,7 @@ function Layout({ children }: { children: React.ReactNode }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
-  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Para dispositivos móviles
   useEffect(() => {
@@ -97,12 +100,6 @@ function Layout({ children }: { children: React.ReactNode }) {
 
   const toggleUserMenu = () => {
     setIsUserMenuOpen(!isUserMenuOpen);
-    if (isNotificationOpen) setIsNotificationOpen(false);
-  };
-  
-  const toggleNotifications = () => {
-    setIsNotificationOpen(!isNotificationOpen);
-    if (isUserMenuOpen) setIsUserMenuOpen(false);
   };
 
   const navigation = [
@@ -112,12 +109,7 @@ function Layout({ children }: { children: React.ReactNode }) {
     { to: '/expenses', icon: <DollarSign size={20} />, label: 'Gastos' },
     { to: '/printing', icon: <Printer size={20} />, label: 'Impresiones' },
     { to: '/services', icon: <Wrench size={20} />, label: 'Servicios' },
-  ];
-
-  // Alertas de notificación (mock)
-  const notifications = [
-    { id: 1, text: 'Tienes 5 productos con stock bajo', type: 'warning' },
-    { id: 2, text: 'Nueva venta registrada', type: 'info' },
+    { to: '/recharges', icon: <Smartphone size={20} />, label: 'Recargas' },
   ];
 
   return (
@@ -151,99 +143,83 @@ function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           
-          {/* Acciones del navbar */}
-          <div className="flex items-center space-x-2">
-            {/* Notificaciones */}
-            <div className="relative">
-              <button 
-                onClick={toggleNotifications}
-                className="p-2 rounded-lg text-gray-600 hover:bg-gray-100 relative"
-                aria-label="Notificaciones"
-              >
-                <Bell size={20} />
-                {notifications.length > 0 && (
-                  <span className="absolute top-1 right-1.5 inline-flex items-center justify-center h-4 w-4 rounded-full bg-red-500 text-white text-xs">
-                    {notifications.length}
-                  </span>
-                )}
-              </button>
-              
-              {/* Dropdown de notificaciones */}
-              {isNotificationOpen && (
-                <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200">
-                  <div className="px-4 py-2 border-b border-gray-200">
-                    <h3 className="text-sm font-semibold text-gray-700">Notificaciones</h3>
-                  </div>
-                  <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
-                    {notifications.length === 0 ? (
-                      <div className="p-4 text-sm text-gray-500 text-center">
-                        No hay notificaciones
-                      </div>
-                    ) : (
-                      notifications.map(notification => (
-                        <div key={notification.id} className={`px-4 py-3 text-sm ${
-                          notification.type === 'warning' ? 'border-l-4 border-orange-500' : 'border-l-4 border-blue-500'
-                        }`}>
-                          <p className="text-gray-700">{notification.text}</p>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                  <div className="px-4 py-2 border-t border-gray-200">
-                    <button className="text-sm text-blue-600 hover:text-blue-800">
-                      Ver todas
-                    </button>
-                  </div>
-                </div>
-              )}
+          {/* Barra de búsqueda central */}
+          <div className="hidden md:flex flex-1 max-w-xl mx-8">
+            <div className="relative w-full">
+              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                <Search className="text-gray-500" size={18} />
+              </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Buscar productos, ventas, servicios..."
+                className="w-full py-2 pl-10 pr-4 bg-gray-100 border-gray-200 rounded-full text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
             </div>
+          </div>
+          
+          {/* Menú de usuario */}
+          <div className="relative">
+            <button 
+              onClick={toggleUserMenu}
+              className="flex items-center space-x-1 p-2 rounded-lg text-gray-600 hover:bg-gray-100"
+              aria-label="Menú de usuario"
+            >
+              <UserCircle size={20} />
+              <span className="text-sm font-medium hidden sm:block">
+                {user?.email?.split('@')[0]}
+              </span>
+              <ChevronDown size={16} />
+            </button>
             
-            {/* Menú de usuario */}
-            <div className="relative">
-              <button 
-                onClick={toggleUserMenu}
-                className="flex items-center space-x-1 p-2 rounded-lg text-gray-600 hover:bg-gray-100"
-                aria-label="Menú de usuario"
-              >
-                <UserCircle size={20} />
-                <span className="text-sm font-medium hidden sm:block">
-                  {user?.email?.split('@')[0]}
-                </span>
-                <ChevronDown size={16} />
-              </button>
-              
-              {/* Dropdown de usuario */}
-              {isUserMenuOpen && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200">
-                  <div className="px-4 py-2 border-b border-gray-200">
-                    <p className="text-sm font-medium text-gray-900 truncate">{user?.email}</p>
-                  </div>
-                  <div className="py-1">
-                    <Link to="/profile" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setIsUserMenuOpen(false)}>
-                      <UserCircle size={16} className="mr-2" />
-                      <span>Perfil</span>
-                    </Link>
-                    <Link to="/settings" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setIsUserMenuOpen(false)}>
-                      <Settings size={16} className="mr-2" />
-                      <span>Configuración</span>
-                    </Link>
-                    <Link to="/help" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setIsUserMenuOpen(false)}>
-                      <HelpCircle size={16} className="mr-2" />
-                      <span>Ayuda</span>
-                    </Link>
-                  </div>
-                  <div className="py-1 border-t border-gray-200">
-                    <button 
-                      onClick={handleSignOut}
-                      className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-                    >
-                      <LogOut size={16} className="mr-2" />
-                      <span>Cerrar sesión</span>
-                    </button>
-                  </div>
+            {/* Dropdown de usuario */}
+            {isUserMenuOpen && (
+              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200">
+                <div className="px-4 py-2 border-b border-gray-200">
+                  <p className="text-sm font-medium text-gray-900 truncate">{user?.email}</p>
                 </div>
-              )}
+                <div className="py-1">
+                  <Link to="/profile" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setIsUserMenuOpen(false)}>
+                    <UserCircle size={16} className="mr-2" />
+                    <span>Perfil</span>
+                  </Link>
+                  <Link to="/settings" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setIsUserMenuOpen(false)}>
+                    <Settings size={16} className="mr-2" />
+                    <span>Configuración</span>
+                  </Link>
+                  <Link to="/help" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setIsUserMenuOpen(false)}>
+                    <HelpCircle size={16} className="mr-2" />
+                    <span>Ayuda</span>
+                  </Link>
+                </div>
+                <div className="py-1 border-t border-gray-200">
+                  <button 
+                    onClick={handleSignOut}
+                    className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                  >
+                    <LogOut size={16} className="mr-2" />
+                    <span>Cerrar sesión</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        {/* Barra de búsqueda para móviles */}
+        <div className="md:hidden px-4 pb-3">
+          <div className="relative w-full">
+            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+              <Search className="text-gray-500" size={18} />
             </div>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar..."
+              className="w-full py-2 pl-10 pr-4 bg-gray-100 border-gray-200 rounded-full text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
         </div>
       </header>
@@ -251,22 +227,27 @@ function Layout({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar para desktop */}
         <aside 
-          className={`hidden md:block border-r border-gray-200 bg-white transition-all duration-300 ease-in-out ${
-            isCollapsed ? 'w-16' : 'w-64'
-          }`}
+          className={clsx(
+            "hidden md:block border-r border-gray-200 bg-white transition-all duration-300 ease-in-out",
+            isCollapsed ? "w-16" : "w-64"
+          )}
         >
-          <nav className={`h-full py-4 flex flex-col ${isCollapsed ? 'px-2' : 'px-3'}`}>
+          <nav className={clsx(
+            "h-full py-4 flex flex-col",
+            isCollapsed ? "px-2" : "px-3"
+          )}>
             <div className="space-y-1 flex-1">
               {navigation.map((item) => (
                 isCollapsed ? (
                   <Link
                     key={item.to}
                     to={item.to}
-                    className={`flex justify-center p-3 rounded-lg transition-all duration-200 ${
+                    className={clsx(
+                      "flex justify-center p-3 rounded-lg transition-all duration-200",
                       location.pathname === item.to
-                        ? 'bg-blue-500 text-white shadow-md'
-                        : 'text-gray-600 hover:bg-blue-50 hover:text-blue-600'
-                    }`}
+                        ? "bg-gradient-to-r from-blue-600 to-blue-500 text-white shadow-md"
+                        : "text-gray-600 hover:bg-blue-50 hover:text-blue-600"
+                    )}
                     title={item.label}
                   >
                     {item.icon}
@@ -313,9 +294,10 @@ function Layout({ children }: { children: React.ReactNode }) {
         
         {/* Sidebar para móvil */}
         <aside 
-          className={`fixed inset-y-0 left-0 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-40 md:hidden ${
-            isMenuOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
+          className={clsx(
+            "fixed inset-y-0 left-0 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-40 md:hidden",
+            isMenuOpen ? "translate-x-0" : "-translate-x-full"
+          )}
         >
           <div className="flex items-center justify-between p-4 border-b border-gray-200">
             <div className="flex items-center">
@@ -363,9 +345,10 @@ function Layout({ children }: { children: React.ReactNode }) {
         </aside>
 
         {/* Contenido principal */}
-        <main className={`flex-1 overflow-y-auto pb-8 ${
-          isCollapsed ? 'px-8' : 'px-6'
-        } pt-6 transition-all duration-300`}>
+        <main className={clsx(
+          "flex-1 overflow-y-auto pb-8 pt-6 transition-all duration-300 bg-gray-50",
+          isCollapsed ? "px-8" : "px-6"
+        )}>
           <div className="max-w-7xl mx-auto">
             {children}
           </div>
