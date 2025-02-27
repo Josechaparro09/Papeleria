@@ -28,6 +28,8 @@ import type { Sale, SaleItem } from "../types/database"
 import { format, subDays, isAfter, parseISO } from "date-fns"
 import { es } from "date-fns/locale"
 import formatMoney from "../utils/format"
+import { PAYMENT_METHODS } from "../hooks/useSales"
+import toast from "react-hot-toast"
 
 function Sales() {
   const { sales, loading, addSale, deleteSale } = useSales()
@@ -38,6 +40,8 @@ function Sales() {
   const [currentSale, setCurrentSale] = useState<Sale | null>(null)
   const [saleType, setSaleType] = useState<"product" | "service">("product")
   const [saleDate, setSaleDate] = useState(format(new Date(), "yyyy-MM-dd HH:mm"))
+  const [customerName, setCustomerName] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState('')
   const [saleItems, setSaleItems] = useState<
     {
       id: string
@@ -74,11 +78,12 @@ function Sales() {
             return itemName.includes(lowerSearchTerm)
           })
 
-          // Search in sale ID or total
+          // Search in sale ID, total, customer name
           const idMatch = sale.id.toLowerCase().includes(lowerSearchTerm)
           const totalMatch = sale.total.toString().includes(lowerSearchTerm)
+          const customerNameMatch = sale.customer_name?.toLowerCase().includes(lowerSearchTerm)
 
-          return itemsMatch || idMatch || totalMatch
+          return itemsMatch || idMatch || totalMatch || customerNameMatch
         })
       }
 
@@ -147,7 +152,7 @@ function Sales() {
       itemToAdd = {
         id: product.id,
         name: product.name,
-        price: product.price,
+        price: product.public_price,
         quantity: Number(itemForm.quantity),
       }
     } else {
@@ -195,34 +200,27 @@ function Sales() {
     const total = calculateTotal()
 
     try {
-      // Eliminamos items porque no es una columna real en la tabla sales
-      const saleData: Omit<Sale, "id" | "created_at" | "items"> = {
-        date: saleDate,
-        total,
-        type: saleType,
-      }
-
-      const saleItemsData = saleItems.map((item) => {
-        const itemData: Partial<SaleItem> = {
+      await addSale(
+        {
+          date: saleDate,
+          total,
+          type: saleType,
+          customer_name: customerName || null,
+          payment_method: paymentMethod || null
+        },
+        saleItems.map(item => ({
+          [saleType === 'product' ? 'product_id' : 'service_id']: item.id,
           quantity: item.quantity,
-          price: item.price,
-        }
+          price: item.price
+        }))
+      )
 
-        if (saleType === "product") {
-          itemData.product_id = item.id
-        } else {
-          itemData.service_id = item.id
-        }
-
-        return itemData as Omit<SaleItem, "id" | "sale_id" | "created_at">
-      })
-
-      await addSale(saleData, saleItemsData)
-
-      // Reset form and close modal
-      setSaleDate(format(new Date(), "yyyy-MM-dd"))
+      // Reset form
+      setSaleDate(format(new Date(), "yyyy-MM-dd HH:mm"))
       setSaleType("product")
       setSaleItems([])
+      setCustomerName('')
+      setPaymentMethod('')
       setShowAddModal(false)
     } catch (error) {
       console.error("Error adding sale:", error)
@@ -244,6 +242,18 @@ function Sales() {
     setShowViewModal(true)
   }
 
+  // Helper function to find product or service name
+  const getItemName = (item: SaleItem) => {
+    if (item.product_id) {
+      const product = products.find((p) => p.id === item.product_id)
+      return product ? product.name : "Producto desconocido"
+    } else if (item.service_id) {
+      const service = services.find((s) => s.id === item.service_id)
+      return service ? service.name : "Servicio desconocido"
+    }
+    return "Desconocido"
+  }
+
   // Group sales by date
   const groupedSales: { [key: string]: Sale[] } = {}
   filteredSales.forEach((sale) => {
@@ -257,18 +267,6 @@ function Sales() {
   // Sort dates in descending order
   const sortedDates = Object.keys(groupedSales).sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
 
-  // Helper function to find product or service name
-  const getItemName = (item: SaleItem) => {
-    if (item.product_id) {
-      const product = products.find((p) => p.id === item.product_id)
-      return product ? product.name : "Producto desconocido"
-    } else if (item.service_id) {
-      const service = services.find((s) => s.id === item.service_id)
-      return service ? service.name : "Servicio desconocido"
-    }
-    return "Desconocido"
-  }
-
   // Calculate total sales amount
   const totalSalesAmount = filteredSales.reduce((sum, sale) => sum + sale.total, 0)
 
@@ -281,6 +279,7 @@ function Sales() {
 
   return (
     <div className="space-y-6 p-6 bg-gray-50 min-h-screen">
+      {/* Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center space-x-2">
           <div className="p-2 bg-blue-100 rounded-lg">
@@ -637,12 +636,40 @@ function Sales() {
                 </div>
               </div>
 
+              {/* Customer and Payment Information */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Cliente (opcional)</label>
+                  <input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    placeholder="Nombre del cliente"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Método de Pago</label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  >
+                    <option value="">Seleccionar método de pago</option>
+                    {PAYMENT_METHODS.map((method) => (
+                      <option key={method} value={method}>
+                        {method}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                 <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 mb-4">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {saleType === "product" ? "Producto" : "Servicio"}
-                    </label>
+                      {saleType === "product" ? "Producto" : "Servicio"}</label>
                     <select
                       name="itemId"
                       value={itemForm.itemId}
@@ -653,7 +680,7 @@ function Sales() {
                       {saleType === "product"
                         ? products.map((product) => (
                             <option key={product.id} value={product.id}>
-                              {product.name} - {formatMoney(product.price)}
+                              {product.name} - {formatMoney(product.public_price)}
                             </option>
                           ))
                         : services.map((service) => (
@@ -837,6 +864,18 @@ function Sales() {
                     <p className="text-sm text-gray-500">Total</p>
                     <p className="font-medium text-blue-600 text-lg">{formatMoney(currentSale.total)}</p>
                   </div>
+                  {currentSale.customer_name && (
+                    <div>
+                      <p className="text-sm text-gray-500">Nombre del Cliente</p>
+                      <p className="font-medium">{currentSale.customer_name}</p>
+                    </div>
+                  )}
+                  {currentSale.payment_method && (
+                    <div>
+                      <p className="text-sm text-gray-500">Método de Pago</p>
+                      <p className="font-medium">{currentSale.payment_method}</p>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -919,4 +958,3 @@ function Sales() {
 }
 
 export default Sales
-

@@ -32,6 +32,8 @@ export interface Sale {
   date: string;
   total: number;
   type: 'product' | 'service';
+  customer_name?: string | null;
+  payment_method?: string | null;
   items?: SaleItem[]; // items es opcional porque no es una columna real
   created_at: string;
 }
@@ -43,6 +45,7 @@ export interface SaleItem {
   service_id?: string;
   quantity: number;
   price: number;
+  subtotal: number;
   created_at: string;
 }
 
