@@ -132,7 +132,7 @@ function Products() {
       public_price: product.public_price.toString(),
       stock: product.stock.toString(),
       min_stock: product.min_stock.toString(),
-      barcode: product.barcode.toString() || "",
+      barcode: product.barcode || "",
     })
     setShowEditModal(true)
   }
@@ -747,7 +747,7 @@ function Products() {
               />
             </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>  
                 <input
                   type="text"
                   name="name"
