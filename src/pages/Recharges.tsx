@@ -21,8 +21,8 @@ import { useRecharges } from '../hooks/useRecharges';
 import { Recharge } from '../types/database';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
-import { formatDate, getTodayISO } from '../utils/dateHelper';
-import formatMoney from '../utils/format';
+import { getTodayISO } from '../utils/dateHelper';
+import { format as formatDate } from 'date-fns';import formatMoney from '../utils/format';
 
 function Recharges() {
   const { recharges, todayRecharge, loading, addRecharge, updateRecharge, deleteRecharge, getRechargeByDate } = useRecharges();
