@@ -54,6 +54,7 @@ export function useProducts() {
     public_price?: number | null;
     stock: number;
     min_stock: number;
+    barcode?: string | null;
   }) {
     try {
       // Prepare data, explicitly handling optional fields
@@ -65,7 +66,8 @@ export function useProducts() {
           purchase_price: product.purchase_price ?? null,
           public_price: product.public_price ?? null,
           stock: product.stock,
-          min_stock: product.min_stock
+          min_stock: product.min_stock,
+          barcode: product.barcode || null
         }).filter(([_, v]) => v !== undefined)
       );
 
@@ -104,6 +106,7 @@ export function useProducts() {
     public_price?: number | null;
     stock?: number;
     min_stock?: number;
+    barcode?: string | null;
   }) {
     try {
       // Prepare updates, explicitly handling optional fields
@@ -114,6 +117,7 @@ export function useProducts() {
           category: updates.category || null,
           purchase_price: updates.purchase_price ?? null,
           public_price: updates.public_price ?? null,
+          barcode: updates.barcode || null,
         }).filter(([_, v]) => v !== undefined)
       );
 

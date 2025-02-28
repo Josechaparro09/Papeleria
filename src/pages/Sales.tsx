@@ -62,6 +62,43 @@ function Sales() {
   const [typeFilter, setTypeFilter] = useState<"all" | "product" | "service">("all")
   const [showFilters, setShowFilters] = useState(false)
   const [filteredSales, setFilteredSales] = useState<Sale[]>([])
+  const [barcodeInput, setBarcodeInput] = useState('');
+
+const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const value = e.target.value;
+  setBarcodeInput(value);
+
+  // Realiza la búsqueda automáticamente
+  if (value) {
+    const product = products.find((p) => p.barcode === value);
+    if (product) {
+      const itemToAdd = {
+        id: product.id,
+        name: product.name,
+        price: product.public_price,
+        quantity: 1,
+      };
+
+      // Check if item already exists in the list
+      const existingItemIndex = saleItems.findIndex((item) => item.id === itemToAdd.id);
+
+      if (existingItemIndex >= 0) {
+        // Update quantity if item already exists
+        const updatedItems = [...saleItems];
+        updatedItems[existingItemIndex].quantity += 1;
+        setSaleItems(updatedItems);
+      } else {
+        // Add new item
+        setSaleItems([...saleItems, itemToAdd]);
+      }
+
+      // Reset barcode input
+      setBarcodeInput('');
+    } else {
+    }
+  }
+};
+
 
   // Apply filters
   useEffect(() => {
@@ -588,6 +625,15 @@ function Sales() {
                 <X size={20} />
               </button>
             </div>
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                placeholder="Código de barras"
+                value={barcodeInput}
+                onChange={handleBarcodeInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
+            </div>
 
             <div className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -605,6 +651,7 @@ function Sales() {
                     />
                   </div>
                 </div>
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de venta</label>
                   <div className="flex">
@@ -633,6 +680,7 @@ function Sales() {
                       Servicios
                     </button>
                   </div>
+                        
                 </div>
               </div>
 

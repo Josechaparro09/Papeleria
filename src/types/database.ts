@@ -16,6 +16,7 @@ export interface Product {
   min_stock: number;
   created_at: string;
   updated_at: string;
+  barcode: string;
 }
 
 export interface Service {

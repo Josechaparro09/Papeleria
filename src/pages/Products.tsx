@@ -38,6 +38,7 @@ function Products() {
     public_price: "",
     stock: "",
     min_stock: "",
+    barcode: "",
   })
 
   // Search and filter state
@@ -112,6 +113,7 @@ function Products() {
       public_price: "",
       stock: "",
       min_stock: "",
+      barcode: "",
     })
   }
 
@@ -130,6 +132,7 @@ function Products() {
       public_price: product.public_price.toString(),
       stock: product.stock.toString(),
       min_stock: product.min_stock.toString(),
+      barcode: product.barcode.toString() || "",
     })
     setShowEditModal(true)
   }
@@ -149,6 +152,7 @@ function Products() {
           : null,
         stock: Number.parseInt(formData.stock),
         min_stock: Number.parseInt(formData.min_stock),
+        barcode: formData.barcode || undefined, // Incluir el código de barras
       })
       setShowAddModal(false)
       resetForm()
@@ -175,6 +179,7 @@ function Products() {
           : null,
         stock: Number.parseInt(formData.stock),
         min_stock: Number.parseInt(formData.min_stock),
+        barcode: formData.barcode || undefined, // Incluir el código de barras
       })
       setShowEditModal(false)
       resetForm()
@@ -550,12 +555,24 @@ function Products() {
                 <div className="p-2 bg-blue-100 rounded-lg">
                   <Plus className="h-5 w-5 text-blue-600" />
                 </div>
+                
                 <h3 className="text-xl font-semibold text-gray-900">Agregar Producto</h3>
               </div>
+              
               <p className="text-sm text-gray-500">Completa los detalles del nuevo producto</p>
             </div>
             <form onSubmit={handleAddProduct} className="space-y-5">
+              
               <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Código de Barras (opcional)</label>
+  <input
+    type="text"
+    name="barcode"
+    value={formData.barcode}
+    onChange={handleInputChange}
+    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+    placeholder="Código de barras"
+  />
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
                 <input
                   type="text"
@@ -670,6 +687,7 @@ function Products() {
                     className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                     placeholder="0"
                   />
+                  
                 </div>
                 <p className="mt-1 text-xs text-gray-500">
                   Se mostrará una alerta cuando el stock sea menor o igual a este valor
@@ -717,6 +735,17 @@ function Products() {
               <p className="text-sm text-gray-500">Actualiza los detalles del producto</p>
             </div>
             <form onSubmit={handleUpdateProduct} className="space-y-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Código de Barras (opcional)</label>
+              <input
+                type="text"
+                name="barcode"
+                value={formData.barcode}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="Código de barras"
+              />
+            </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
                 <input
