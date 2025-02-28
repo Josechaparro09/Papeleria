@@ -2,6 +2,8 @@
 import { format } from "date-fns";
 import { PrintingRecord, Sale, Product, Service } from "../types/database";
 import * as XLSX from 'xlsx';
+import { isSameDayColombia, formatDateColombia } from './dateHelper';
+
 
 /**
  * Exporta los registros de impresiones a un archivo Excel
@@ -95,10 +97,21 @@ export const exportAllProfitsToExcel = (
   products: Product[],
   services: Service[],
   printingRecords: PrintingRecord[],
-  filename: string = `Reporte_Ganancias_${format(new Date(), 'yyyy-MM-dd')}.xlsx`
+  filename: string = `Reporte_Ganancias_${format(new Date(), 'yyyy-MM-dd')}.xlsx`,
+  specificDate?: string  // Fecha específica opcional para filtrar
 ): boolean => {
   try {
-    // Crear un libro con múltiples hojas
+    // Si se proporciona una fecha específica, filtrar los datos
+    if (specificDate) {
+      // Filtrar ventas y registros que coincidan con la fecha específica
+      sales = sales.filter(sale => isSameDayColombia(sale.date, specificDate));
+      printingRecords = printingRecords.filter(record => isSameDayColombia(record.date, specificDate));
+      
+      // Actualizar el nombre del archivo para reflejar la fecha específica
+      filename = `Reporte_Ganancias_${specificDate}.xlsx`;
+    }
+    
+    // El resto del código sigue igual...
     const workbook = XLSX.utils.book_new();
     
     // 1. Hoja de Ganancias de Productos
@@ -130,6 +143,7 @@ export const exportAllProfitsToExcel = (
     return false;
   }
 };
+
 
 /**
  * Prepara los datos de ganancias de productos para Excel

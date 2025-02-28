@@ -31,6 +31,8 @@ import { es } from "date-fns/locale";
 import * as XLSX from 'xlsx';
 import { exportAllProfitsToExcel } from "../utils/excelExport";
 import DateFilter from "../components/DateFilter";
+import { isSameDayColombia, formatDateColombia, toLocalDate } from '../utils/dateHelper';
+
 
 function Dashboard() {
   const { stats, loading } = useDashboard();
@@ -67,12 +69,17 @@ function Dashboard() {
   // Aplicar filtro de fecha
   useEffect(() => {
     if (selectedDate) {
-      // Filtrar ventas por la fecha seleccionada
-      const salesForDate = sales.filter(sale => sale.date === selectedDate);
+      // Filtrar ventas por la fecha seleccionada usando la función adaptada para Colombia
+      const salesForDate = sales.filter(sale => {
+        // Para una comparación precisa en la zona horaria de Colombia
+        return isSameDayColombia(sale.date, selectedDate);
+      });
       setFilteredSales(salesForDate);
       
       // Filtrar registros de impresión por la fecha seleccionada
-      const recordsForDate = records.filter(record => record.date === selectedDate);
+      const recordsForDate = records.filter(record => {
+        return isSameDayColombia(record.date, selectedDate);
+      });
       setFilteredRecords(recordsForDate);
       
       // Calcular ganancias para la fecha seleccionada
@@ -318,18 +325,14 @@ function Dashboard() {
 
   // Función para exportar datos de un día específico a Excel
   const handleExportDayProfits = (date: string) => {
-    const dateFormatted = format(new Date(date), 'yyyy-MM-dd');
-    // Filtrar datos por la fecha seleccionada
-    const salesForDate = sales.filter(sale => sale.date === dateFormatted);
-    const recordsForDate = records.filter(record => record.date === dateFormatted);
-    
-    // Exportar solo los datos de esa fecha
+    // Exportar solo los datos de esa fecha usando el parámetro specificDate
     exportAllProfitsToExcel(
-      salesForDate, 
+      sales, 
       products, 
       services, 
-      recordsForDate, 
-      `Ganancias_${format(new Date(date), 'dd-MM-yyyy')}.xlsx`
+      records, 
+      undefined, // Usamos el nombre de archivo por defecto basado en la fecha
+      date // Pasamos la fecha específica para filtrar
     );
   };
 
@@ -367,7 +370,7 @@ function Dashboard() {
             <div>
               <h2 className="text-xl font-bold text-gray-900 flex items-center">
                 <Calendar className="mr-2 text-blue-600" size={20} />
-                Resultados para: {format(new Date(selectedDate), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
+                Resultados para: {formatDateColombia(selectedDate, "EEEE, d 'de' MMMM 'de' yyyy")}
               </h2>
               <p className="text-sm text-gray-500 mt-1">
                 {filteredSales.length} ventas y {filteredRecords.length} registros de impresión

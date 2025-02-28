@@ -1,8 +1,7 @@
 // src/components/DateFilter.tsx
 import React, { useState } from 'react';
 import { Calendar, ChevronDown, Download, Filter, X } from 'lucide-react';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+import { formatDateColombia } from '../utils/dateHelper';
 
 interface DateFilterProps {
   onDateChange: (date: string | null) => void;
@@ -16,7 +15,10 @@ const DateFilter: React.FC<DateFilterProps> = ({ onDateChange, onExportDate, sel
 
   const handleDateSelect = () => {
     if (inputDate) {
-      onDateChange(inputDate);
+      // Asegurarse de que estamos pasando solo la parte de fecha YYYY-MM-DD
+      // sin ajustes de zona horaria
+      const dateOnly = inputDate.split('T')[0];
+      onDateChange(dateOnly);
     }
     setIsOpen(false);
   };
@@ -33,10 +35,6 @@ const DateFilter: React.FC<DateFilterProps> = ({ onDateChange, onExportDate, sel
     }
   };
 
-  const formatDisplayDate = (date: string) => {
-    return format(new Date(date), "d 'de' MMMM, yyyy", { locale: es });
-  };
-
   return (
     <div className="relative">
       <div className="flex items-center space-x-2">
@@ -47,7 +45,7 @@ const DateFilter: React.FC<DateFilterProps> = ({ onDateChange, onExportDate, sel
           <Filter size={16} className="text-gray-500" />
           <span className="text-sm text-gray-700">
             {selectedDate 
-              ? `Filtrado: ${formatDisplayDate(selectedDate)}` 
+              ? `Filtrado: ${formatDateColombia(selectedDate, "d 'de' MMMM, yyyy")}` 
               : "Filtrar por fecha"}
           </span>
           <ChevronDown size={16} className="text-gray-500" />
@@ -91,6 +89,9 @@ const DateFilter: React.FC<DateFilterProps> = ({ onDateChange, onExportDate, sel
                   className="pl-10 w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Selecciona la fecha para filtrar (zona horaria: Colombia UTC-5)
+              </p>
             </div>
             <div className="flex justify-end space-x-2">
               <button
