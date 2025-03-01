@@ -23,6 +23,7 @@ import { useProducts, PRODUCT_CATEGORIES } from "../hooks/useProducts"
 import type { Product } from "../types/database"
 import formatMoney from "../utils/format"
 import toast from "react-hot-toast" // Add this import
+import CurrencyInput from "react-currency-input-field"
 
 
 function Products() {
@@ -565,14 +566,14 @@ function Products() {
               
               <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Código de Barras (opcional)</label>
-  <input
-    type="text"
-    name="barcode"
-    value={formData.barcode}
-    onChange={handleInputChange}
-    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-    placeholder="Código de barras"
-  />
+              <input
+                type="text"
+                name="barcode"
+                value={formData.barcode}
+                onChange={handleInputChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                placeholder="Código de barras"
+              />
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
                 <input
                   type="text"
@@ -628,6 +629,7 @@ function Products() {
                       className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                       placeholder="0"
                     />
+                    
                   </div>
                 </div>
               </div>
@@ -649,6 +651,8 @@ function Products() {
                       className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                       placeholder="0.00"
                     />
+                    <CurrencyInput name = "purchase_price" value={formData.purchase_price} onChange={handleInputChange} className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" placeholder="0.00" required />
+
                   </div>
                 </div>
                 <div>
