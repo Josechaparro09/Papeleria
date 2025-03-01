@@ -110,6 +110,7 @@ function Layout({ children }: { children: React.ReactNode }) {
     { to: '/printing', icon: <Printer size={20} />, label: 'Impresiones' },
     { to: '/services', icon: <Wrench size={20} />, label: 'Servicios' },
     { to: '/recharges', icon: <Smartphone size={20} />, label: 'Recargas' },
+    { to: '/history', icon: <Receipt size={20} />, label: 'Historial de cierres' },
   ];
 
   return (
