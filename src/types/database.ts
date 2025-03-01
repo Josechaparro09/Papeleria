@@ -72,14 +72,32 @@ export interface PrintingRecord {
 }
 
 // Nueva interfaz para manejar recargas
-export interface Recharge {
+  export interface Recharge {
+    id: string;
+    date: string;
+    opening_balance: number; // Saldo inicial
+    closing_balance: number; // Saldo final
+    sales_amount: number; // Monto de ventas (calculado automáticamente)
+    profit?: number; // Ganancia opcional
+    notes?: string; // Notas adicionales
+    created_at: string;
+    updated_at?: string;
+  }
+
+  // src/types/database.ts
+export interface CashRegister {
   id: string;
-  date: string;
-  opening_balance: number; // Saldo inicial
-  closing_balance: number; // Saldo final
-  sales_amount: number; // Monto de ventas (calculado automáticamente)
-  profit?: number; // Ganancia opcional
-  notes?: string; // Notas adicionales
+  date: string;              // Fecha de la caja (ISO: YYYY-MM-DD)
+  opening_balance: number;   // Saldo inicial al abrir caja
+  closing_balance?: number;  // Saldo final al cerrar caja (opcional hasta cerrar)
   created_at: string;
   updated_at?: string;
+}
+
+export interface RechargeTransaction {
+  id: string;
+  cash_register_id: string;  // Relación con la caja del día
+  description: string;       // Descripción de la recarga (ej. "Recarga Claro")
+  amount: number;            // Valor de la recarga (ej. 10000)
+  created_at: string;
 }
