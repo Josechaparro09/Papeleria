@@ -1,173 +1,149 @@
 // src/hooks/useRecharges.ts
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Recharge } from '../types/database';
+import { CashRegister, RechargeTransaction } from '../types/database';
 import toast from 'react-hot-toast';
-import { format } from 'date-fns';
 import { getTodayISO } from '../utils/dateHelper';
 
 export function useRecharges() {
-  const [recharges, setRecharges] = useState<Recharge[]>([]);
-  const [todayRecharge, setTodayRecharge] = useState<Recharge | null>(null);
+  const [cashRegisters, setCashRegisters] = useState<CashRegister[]>([]);
+  const [todayCashRegister, setTodayCashRegister] = useState<CashRegister | null>(null);
+  const [transactions, setTransactions] = useState<RechargeTransaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchRecharges();
+    fetchCashRegisters();
   }, []);
 
-  async function fetchRecharges() {
+  async function fetchCashRegisters() {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('recharges')
+      const { data: cashData, error: cashError } = await supabase
+        .from('cash_registers')
         .select('*')
         .order('date', { ascending: false });
 
-      if (error) throw error;
-      
-      setRecharges(data || []);
-      
-      // Buscar la recarga de hoy
+      if (cashError) throw cashError;
+
       const today = getTodayISO();
-      const todayRechargeData = data?.find(recharge => recharge.date === today) || null;
-      setTodayRecharge(todayRechargeData);
-      
+      const todayRegister = cashData?.find(r => r.date === today) || null;
+      setTodayCashRegister(todayRegister);
+      setCashRegisters(cashData || []);
+
+      if (todayRegister) {
+        await fetchTransactions(todayRegister.id);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar recargas');
-      toast.error('Error al cargar datos de recargas');
+      toast.error('Error al cargar datos de caja');
     } finally {
       setLoading(false);
     }
   }
 
-  async function addRecharge(recharge: Omit<Recharge, 'id' | 'created_at' | 'sales_amount'>) {
-    try {
-      // Calcular automáticamente el monto de ventas (opening - closing)
-      const salesAmount = recharge.opening_balance - recharge.closing_balance;
-      
-      // Verificar si ya existe una recarga para la fecha especificada
-      const existingRecharge = recharges.find(r => r.date === recharge.date);
-      
-      if (existingRecharge) {
-        // Si existe, actualizar en lugar de crear
-        return updateRecharge(existingRecharge.id, {
-          ...recharge,
-          sales_amount: salesAmount
-        });
-      } else {
-        // Si no existe, crear nueva
-        const { data, error } = await supabase
-          .from('recharges')
-          .insert([{
-            ...recharge,
-            sales_amount: salesAmount
-          }])
-          .select()
-          .single();
+  async function fetchTransactions(cashRegisterId: string) {
+    const { data, error } = await supabase
+      .from('recharge_transactions')
+      .select('*')
+      .eq('cash_register_id', cashRegisterId)
+      .order('created_at', { ascending: false });
 
-        if (error) throw error;
-        
-        setRecharges([data, ...recharges]);
-        
-        // Actualizar todayRecharge si corresponde a la fecha actual
-        const today = getTodayISO();
-        if (data.date === today) {
-          setTodayRecharge(data);
-        }
-        
-        toast.success('Registro de recargas añadido exitosamente');
-        return data;
-      }
-    } catch (err) {
-      toast.error('Error al registrar datos de recargas');
-      throw err;
-    }
+    if (error) throw error;
+    setTransactions(data || []);
   }
 
-  async function updateRecharge(id: string, updates: Partial<Omit<Recharge, 'id' | 'created_at'>>) {
+  async function openCashRegister(openingBalance: number) {
     try {
-      // Si se actualiza saldo inicial o final, recalcular el monto de ventas
-      let updateData = { ...updates };
-      
-      if (updates.opening_balance !== undefined || updates.closing_balance !== undefined) {
-        // Obtener los valores actuales si no se proporcionan
-        const currentRecharge = recharges.find(r => r.id === id);
-        if (!currentRecharge) throw new Error('Registro no encontrado');
-        
-        const openingBalance = updates.opening_balance ?? currentRecharge.opening_balance;
-        const closingBalance = updates.closing_balance ?? currentRecharge.closing_balance;
-        
-        // Recalcular ventas
-        updateData.sales_amount = openingBalance - closingBalance;
+      const today = getTodayISO();
+      const existingRegister = cashRegisters.find(r => r.date === today);
+
+      if (existingRegister) {
+        toast.error('Ya existe una caja abierta para hoy');
+        return existingRegister;
       }
-      
+
       const { data, error } = await supabase
-        .from('recharges')
-        .update(updateData)
-        .eq('id', id)
+        .from('cash_registers')
+        .insert([{ date: today, opening_balance: openingBalance }])
         .select()
         .single();
 
       if (error) throw error;
-      
-      setRecharges(recharges.map(r => r.id === id ? data : r));
-      
-      // Actualizar todayRecharge si corresponde
-      const today = format(new Date(), 'yyyy-MM-dd');
-      if (data.date === today) {
-        setTodayRecharge(data);
-      } else if (todayRecharge && todayRecharge.id === id) {
-        // Si se cambió la fecha y ya no es hoy
-        setTodayRecharge(null);
-      }
-      
-      toast.success('Registro de recargas actualizado exitosamente');
+
+      setCashRegisters([data, ...cashRegisters]);
+      setTodayCashRegister(data);
+      setTransactions([]);
+      toast.success('Caja abierta exitosamente');
       return data;
     } catch (err) {
-      toast.error('Error al actualizar registro de recargas');
+      toast.error('Error al abrir la caja');
       throw err;
     }
   }
 
-  async function deleteRecharge(id: string) {
+  async function closeCashRegister(cashRegisterId: string) {
     try {
-      const { error } = await supabase
-        .from('recharges')
-        .delete()
-        .eq('id', id);
+      const totalRecharges = transactions.reduce((sum, t) => sum + t.amount, 0);
+      const currentRegister = cashRegisters.find(r => r.id === cashRegisterId);
+      if (!currentRegister) throw new Error('Caja no encontrada');
+
+      const closingBalance = currentRegister.opening_balance - totalRecharges;
+
+      const { data, error } = await supabase
+        .from('cash_registers')
+        .update({ closing_balance: closingBalance })
+        .eq('id', cashRegisterId)
+        .select()
+        .single();
 
       if (error) throw error;
-      
-      const updatedRecharges = recharges.filter(r => r.id !== id);
-      setRecharges(updatedRecharges);
-      
-      // Actualizar todayRecharge si corresponde
-      if (todayRecharge && todayRecharge.id === id) {
-        setTodayRecharge(null);
+
+      setCashRegisters(cashRegisters.map(r => (r.id === cashRegisterId ? data : r)));
+      if (todayCashRegister?.id === cashRegisterId) {
+        setTodayCashRegister(data);
       }
-      
-      toast.success('Registro de recargas eliminado exitosamente');
+      toast.success('Caja cerrada exitosamente');
+      return data;
     } catch (err) {
-      toast.error('Error al eliminar registro de recargas');
+      toast.error('Error al cerrar la caja');
       throw err;
     }
   }
 
-  // Función para verificar si existe una recarga en una fecha específica
-  function getRechargeByDate(date: string): Recharge | null {
-    return recharges.find(r => r.date === date) || null;
+  async function addRechargeTransaction(cashRegisterId: string, description: string, amount: number) {
+    try {
+      const { data, error } = await supabase
+        .from('recharge_transactions')
+        .insert([{ cash_register_id: cashRegisterId, description, amount }])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setTransactions([data, ...transactions]);
+      toast.success('Recarga registrada exitosamente');
+      return data;
+    } catch (err) {
+      toast.error('Error al registrar la recarga');
+      throw err;
+    }
+  }
+
+  function getCurrentBalance(): number {
+    if (!todayCashRegister) return 0;
+    const totalRecharges = transactions.reduce((sum, t) => sum + t.amount, 0);
+    return todayCashRegister.opening_balance - totalRecharges;
   }
 
   return {
-    recharges,
-    todayRecharge,
+    cashRegisters,
+    todayCashRegister,
+    transactions,
     loading,
-    error,
-    fetchRecharges,
-    addRecharge,
-    updateRecharge,
-    deleteRecharge,
-    getRechargeByDate
+    openCashRegister,
+    closeCashRegister,
+    addRechargeTransaction,
+    fetchCashRegisters,
+    fetchTransactions,
+    getCurrentBalance,
   };
 }
