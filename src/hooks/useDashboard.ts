@@ -21,10 +21,10 @@ interface DashboardStats {
   profitMargin: number;
   dailyPrintingProfit: number;
   monthlyPrintingProfit: number;
-  monthlyPrintingRevenue: number; // Nuevo campo para ingresos totales de impresiones
+  monthlyPrintingRevenue: number;
 }
 
-export function useDashboard() {
+export function useDashboard(startDate?: string, endDate?: string) {
   const [stats, setStats] = useState<DashboardStats>({
     dailySales: 0,
     monthlySales: 0,
@@ -36,44 +36,49 @@ export function useDashboard() {
     profitMargin: 0,
     dailyPrintingProfit: 0,
     monthlyPrintingProfit: 0,
-    monthlyPrintingRevenue: 0, // Inicializado
+    monthlyPrintingRevenue: 0,
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDashboardStats();
-  }, []);
+  }, [startDate, endDate]);
 
   async function fetchDashboardStats() {
     try {
       setLoading(true);
       const today = format(new Date(), "yyyy-MM-dd");
-      const firstDayOfMonth = format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), "yyyy-MM-dd");
+      const defaultStart = startDate || format(new Date(new Date().getFullYear(), new Date().getMonth(), 1), "yyyy-MM-dd");
+      const defaultEnd = endDate || format(new Date(), "yyyy-MM-dd");
 
-      // Daily sales
+      // Daily sales (only if no custom range is provided or today is within range)
       const { data: dailySales } = await supabase
         .from("sales")
         .select("total")
-        .eq("date", today);
+        .eq("date", today)
+        .gte("date", defaultStart)
+        .lte("date", defaultEnd);
 
-      // Monthly sales (total, by type, and top selling products)
-      const { data: monthlySalesData } = await supabase
+      // Sales within the date range
+      const { data: rangeSalesData } = await supabase
         .from("sales")
         .select(`
           total,
           type,
           items:sale_items(quantity, price, product_id)
         `)
-        .gte("date", firstDayOfMonth);
+        .gte("date", defaultStart)
+        .lte("date", defaultEnd);
 
-      // Monthly expenses
-      const { data: monthlyExpenses } = await supabase
+      // Expenses within the date range
+      const { data: rangeExpenses } = await supabase
         .from("expenses")
         .select("amount")
-        .gte("date", firstDayOfMonth);
+        .gte("date", defaultStart)
+        .lte("date", defaultEnd);
 
-      // Low stock products
+      // Low stock products (not date-dependent)
       const { data: allProducts } = await supabase
         .from("products")
         .select("id, stock, min_stock, name");
@@ -82,33 +87,36 @@ export function useDashboard() {
       const { data: dailyPrinting } = await supabase
         .from("printing_records")
         .select("*")
-        .eq("date", today);
+        .eq("date", today)
+        .gte("date", defaultStart)
+        .lte("date", defaultEnd);
 
-      // Printing records - monthly
-      const { data: monthlyPrinting } = await supabase
+      // Printing records - within range
+      const { data: rangePrinting } = await supabase
         .from("printing_records")
         .select("*")
-        .gte("date", firstDayOfMonth);
+        .gte("date", defaultStart)
+        .lte("date", defaultEnd);
 
       const typedProducts = allProducts as ProductWithStock[];
 
       // Calculate sales statistics
-      const monthlySalesTotal = monthlySalesData?.reduce((sum, sale) => sum + sale.total, 0) || 0;
-      const monthlyServiceSales = monthlySalesData
+      const rangeSalesTotal = rangeSalesData?.reduce((sum, sale) => sum + sale.total, 0) || 0;
+      const rangeServiceSales = rangeSalesData
         ?.filter((sale) => sale.type === "service")
         .reduce((sum, sale) => sum + sale.total, 0) || 0;
-      const monthlyProductSales = monthlySalesData
+      const rangeProductSales = rangeSalesData
         ?.filter((sale) => sale.type === "product")
         .reduce((sum, sale) => sum + sale.total, 0) || 0;
 
       // Calculate printing revenue and profit
       const dailyPrintingProfit = calculatePrintingProfit(dailyPrinting || []);
-      const monthlyPrintingProfit = calculatePrintingProfit(monthlyPrinting || []);
-      const monthlyPrintingRevenue = calculatePrintingRevenue(monthlyPrinting || []); // Nuevo cálculo
+      const rangePrintingProfit = calculatePrintingProfit(rangePrinting || []);
+      const rangePrintingRevenue = calculatePrintingRevenue(rangePrinting || []);
 
       // Calculate top selling products
       const productSales: { [key: string]: number } = {};
-      monthlySalesData
+      rangeSalesData
         ?.filter((sale) => sale.type === "product")
         .forEach((sale) => {
           sale.items?.forEach((item) => {
@@ -133,25 +141,24 @@ export function useDashboard() {
         ? typedProducts.filter((product) => product.stock <= product.min_stock).length
         : 0;
 
-      const monthlyExpensesTotal = monthlyExpenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0;
+      const rangeExpensesTotal = rangeExpenses?.reduce((sum, expense) => sum + Number(expense.amount), 0) || 0;
 
-      // Total revenue includes sales and printing revenue
-      const totalRevenue = monthlySalesTotal + monthlyPrintingRevenue;
-      const totalProfit = monthlySalesTotal - monthlyExpensesTotal + monthlyPrintingProfit; // Ajustado para ganancias
+      const totalRevenue = rangeSalesTotal + rangePrintingRevenue;
+      const totalProfit = rangeSalesTotal - rangeExpensesTotal + rangePrintingProfit;
       const profitMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
       setStats({
         dailySales: dailySales?.reduce((sum, sale) => sum + Number(sale.total), 0) || 0,
-        monthlySales: monthlySalesTotal,
-        monthlyServiceSales,
-        monthlyProductSales,
-        monthlyExpenses: monthlyExpensesTotal,
+        monthlySales: rangeSalesTotal,
+        monthlyServiceSales: rangeServiceSales,
+        monthlyProductSales: rangeProductSales,
+        monthlyExpenses: rangeExpensesTotal,
         lowStockProducts: lowStockCount,
         topSellingProducts,
         profitMargin,
         dailyPrintingProfit,
-        monthlyPrintingProfit,
-        monthlyPrintingRevenue, // Nuevo campo
+        monthlyPrintingProfit: rangePrintingProfit,
+        monthlyPrintingRevenue: rangePrintingRevenue,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error al cargar estadísticas");
@@ -168,12 +175,10 @@ export function useDashboard() {
       const totalCost = totalSheets * record.cost_per_sheet;
       const copyIncome = (record.price_per_copy || 0) * record.copies;
       const printIncome = (record.price_per_print || 0) * record.prints;
-      const totalIncome = copyIncome + printIncome;
-      return total + (totalIncome - totalCost);
+      return total + (copyIncome + printIncome - totalCost);
     }, 0);
   }
 
-  // Nueva función para calcular ingresos totales de impresiones
   function calculatePrintingRevenue(records: any[]): number {
     return records.reduce((total, record) => {
       const copyIncome = (record.price_per_copy || 0) * record.copies;

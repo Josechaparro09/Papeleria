@@ -16,13 +16,16 @@ import { usePrintingRecords } from "../hooks/usePrintingRecords";
 import { useExpenses } from "../hooks/useExpenses";
 import { Link } from "react-router-dom";
 import formatMoney from "../utils/format";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { exportAllProfitsToExcel } from "../utils/excelExport";
-import { format } from "date-fns";
+import { format, subDays, startOfWeek, startOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 function Dashboard() {
-  const { stats, loading } = useDashboard();
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+  const [filterType, setFilterType] = useState<string>("month"); // Default to "month"
+  const { stats, loading } = useDashboard(startDate, endDate);
   const { sales } = useSales();
   const { products } = useProducts();
   const { services } = useServices();
@@ -35,17 +38,49 @@ function Dashboard() {
     printing: 0,
     total: 0,
   });
-  const [selectedDate, setSelectedDate] = useState<string>("");
 
-  // Calcular ganancias mensuales
+  // Function to set date range based on filter type
+  const setDateRange = (type: string) => {
+    const today = new Date();
+    let newStartDate = "";
+    let newEndDate = format(today, "yyyy-MM-dd");
+
+    switch (type) {
+      case "today":
+        newStartDate = newEndDate;
+        break;
+      case "week":
+        newStartDate = format(startOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd"); // Assuming week starts on Monday
+        break;
+      case "month":
+        newStartDate = format(startOfMonth(today), "yyyy-MM-dd");
+        break;
+      default:
+        newStartDate = "";
+        newEndDate = "";
+    }
+
+    setStartDate(newStartDate);
+    setEndDate(newEndDate);
+    setFilterType(type);
+  };
+
+  // Set initial date range to current month
+  useEffect(() => {
+    setDateRange("month");
+  }, []);
+
+  // Calcular ganancias en el rango seleccionado
   useEffect(() => {
     if (sales.length > 0 && products.length > 0 && services.length > 0 && records.length > 0) {
-      const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split("T")[0];
+      const filteredSales = sales.filter((sale) => 
+        (!startDate || sale.date >= startDate) && (!endDate || sale.date <= endDate)
+      );
+      const filteredRecords = records.filter((record) => 
+        (!startDate || record.date >= startDate) && (!endDate || record.date <= endDate)
+      );
 
-      const monthSales = sales.filter((sale) => sale.date >= firstDayOfMonth);
-      const monthRecords = records.filter((record) => record.date >= firstDayOfMonth);
-
-      const productProfit = monthSales
+      const productProfit = filteredSales
         .filter((sale) => sale.type === "product")
         .reduce((sum, sale) => {
           return (
@@ -57,7 +92,7 @@ function Dashboard() {
           );
         }, 0);
 
-      const serviceProfit = monthSales
+      const serviceProfit = filteredSales
         .filter((sale) => sale.type === "service")
         .reduce((sum, sale) => {
           return (
@@ -66,7 +101,7 @@ function Dashboard() {
           );
         }, 0);
 
-      const printingProfit = monthRecords.reduce((sum, record) => {
+      const printingProfit = filteredRecords.reduce((sum, record) => {
         const totalSheets = record.copies + record.prints + record.damaged_sheets;
         const totalCost = totalSheets * record.cost_per_sheet;
         const copyIncome = (record.price_per_copy || 0) * record.copies;
@@ -81,35 +116,22 @@ function Dashboard() {
         total: productProfit + serviceProfit + printingProfit,
       });
     }
-  }, [sales, products, services, records]);
+  }, [sales, products, services, records, startDate, endDate]);
 
-  // Datos para el gráfico (usamos ingresos, no ganancias)
   const chartData = [
     { name: "Productos", ventas: stats.monthlyProductSales, color: "#3B82F6" },
     { name: "Servicios", ventas: stats.monthlyServiceSales, color: "#8B5CF6" },
-    { name: "Impresiones", ventas: stats.monthlyPrintingRevenue, color: "#10B981" }, // Cambiado a revenue
+    { name: "Impresiones", ventas: stats.monthlyPrintingRevenue, color: "#10B981" },
   ];
 
-  // Calcular margen de ganancia
-  const totalRevenue = stats.monthlySales + stats.monthlyPrintingRevenue; // Ingresos totales
+  const totalRevenue = stats.monthlySales + stats.monthlyPrintingRevenue;
   const profitMargin = totalRevenue > 0 ? (monthlyProfit.total / totalRevenue) * 100 : 0;
 
-  // Exportar datos
   const handleExportAll = () => {
-    const success = exportAllProfitsToExcel(sales, products, services, records);
+    const success = exportAllProfitsToExcel(sales, products, services, records, undefined, startDate, endDate);
     if (!success) alert("Error al exportar el reporte completo.");
   };
 
-  const handleExportByDate = () => {
-    if (!selectedDate) {
-      alert("Por favor, selecciona una fecha antes de exportar.");
-      return;
-    }
-    const success = exportAllProfitsToExcel(sales, products, services, records, undefined, selectedDate);
-    if (!success) alert("Error al exportar el reporte para la fecha seleccionada.");
-  };
-
-  // Últimos 3 gastos
   const recentExpenses = expenses.slice(0, 3);
 
   return (
@@ -117,26 +139,42 @@ function Dashboard() {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-1">Resumen mensual de tu negocio</p>
+          <p className="text-gray-600 mt-1">Resumen de tu negocio</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <select
+            value={filterType}
+            onChange={(e) => setDateRange(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="today">Hoy</option>
+            <option value="week">Semana</option>
+            <option value="month">Mes</option>
+          </select>
           <input
             type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
+            value={startDate}
+            onChange={(e) => {
+              setStartDate(e.target.value);
+              setFilterType(""); // Clear filter type when manually setting dates
+            }}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
-          <button
-            onClick={handleExportByDate}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
-          >
-            <span>Exportar por Fecha</span>
-          </button>
+          <span>-</span>
+          <input
+            type="date"
+            value={endDate}
+            onChange={(e) => {
+              setEndDate(e.target.value);
+              setFilterType(""); // Clear filter type when manually setting dates
+            }}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
           <button
             onClick={handleExportAll}
             className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors shadow-md"
           >
-            <span>Exportar Todo</span>
+            <span>Exportar Rango</span>
           </button>
         </div>
       </div>
@@ -152,11 +190,10 @@ function Dashboard() {
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Ventas Mensuales */}
           <div className="bg-white p-6 rounded-lg shadow-md">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center">
               <BarChart3 className="mr-2 text-blue-600" size={24} />
-              Ventas del Mes
+              Ventas
             </h2>
             <div className="mt-4 h-64">
               <ResponsiveContainer width="100%" height="100%">
@@ -176,7 +213,7 @@ function Dashboard() {
             <div className="mt-4 flex justify-between items-center">
               <span className="text-sm font-semibold text-gray-700">Total:</span>
               <span className="text-xl font-bold text-blue-600">
-                {formatMoney(stats.monthlySales + stats.monthlyPrintingRevenue)} {/* Cambiado a revenue */}
+                {formatMoney(stats.monthlySales + stats.monthlyPrintingRevenue)}
               </span>
             </div>
             <Link
@@ -187,11 +224,10 @@ function Dashboard() {
             </Link>
           </div>
 
-          {/* Ganancias Mensuales */}
           <div className="bg-white p-6 rounded-lg shadow-md">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center">
               <DollarSign className="mr-2 text-green-600" size={24} />
-              Ganancias del Mes
+              Ganancias
             </h2>
             <div className="mt-4 space-y-3">
               <div className="flex items-center justify-between">
@@ -232,15 +268,14 @@ function Dashboard() {
             </div>
           </div>
 
-          {/* Gastos Mensuales */}
           <div className="bg-white p-6 rounded-lg shadow-md">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center">
               <DollarSign className="mr-2 text-red-600" size={24} />
-              Gastos del Mes
+              Gastos
             </h2>
             <div className="mt-4">
               <p className="text-2xl font-bold text-red-600">{formatMoney(stats.monthlyExpenses)}</p>
-              <p className="text-sm text-gray-500 mt-1">Total de gastos este mes</p>
+              <p className="text-sm text-gray-500 mt-1">Total de gastos</p>
             </div>
             <div className="mt-4">
               <h3 className="text-sm font-semibold text-gray-700 mb-2">Últimos 3 Gastos</h3>
