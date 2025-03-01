@@ -13,6 +13,7 @@ import Recharges from './pages/Recharges'; // Importar la nueva página
 import Layout from './components/Layout';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
+import RechargeHistory from './pages/RechargeHistory';
 
 // Componente de carga durante la inicialización de auth
 const LoadingScreen = () => (
@@ -135,6 +136,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Recharges />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/history"
+            element={
+              <ProtectedRoute>
+                <RechargeHistory />
               </ProtectedRoute>
             }
           />
