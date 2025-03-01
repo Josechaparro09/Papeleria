@@ -126,24 +126,28 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 
       // Apply date filter
       if (dateFilter !== "all") {
-        const today = new Date()
-        today.setHours(0, 0, 0, 0)
+        const now = new Date()
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
         if (dateFilter === "today") {
           filtered = filtered.filter((sale) => {
-            const saleDate = new Date(sale.date)
-            saleDate.setHours(0, 0, 0, 0)
-            return saleDate.getTime() === today.getTime()
+        const saleDate = parseISO(sale.date)
+        const compareDate = new Date(saleDate.getFullYear(), saleDate.getMonth(), saleDate.getDate())
+        return compareDate.getTime() === today.getTime()
           })
         } else if (dateFilter === "week") {
           const weekAgo = subDays(today, 7)
           filtered = filtered.filter((sale) => {
-            return isAfter(parseISO(sale.date), weekAgo)
+        const saleDate = parseISO(sale.date)
+        const compareSaleDate = new Date(saleDate.getFullYear(), saleDate.getMonth(), saleDate.getDate())
+        return isAfter(compareSaleDate, subDays(weekAgo, 1)) && !isAfter(compareSaleDate, now)
           })
         } else if (dateFilter === "month") {
           const monthAgo = subDays(today, 30)
           filtered = filtered.filter((sale) => {
-            return isAfter(parseISO(sale.date), monthAgo)
+        const saleDate = parseISO(sale.date)
+        const compareSaleDate = new Date(saleDate.getFullYear(), saleDate.getMonth(), saleDate.getDate())
+        return isAfter(compareSaleDate, subDays(monthAgo, 1)) && !isAfter(compareSaleDate, now)
           })
         }
       }
@@ -154,10 +158,10 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       }
 
       setFilteredSales(filtered)
-    } else {
+        } else {
       setFilteredSales([])
-    }
-  }, [sales, searchTerm, dateFilter, typeFilter, loading])
+        }
+      }, [sales, searchTerm, dateFilter, typeFilter, loading])
 
   // Reset form when changing sale type
   useEffect(() => {

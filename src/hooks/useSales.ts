@@ -32,6 +32,8 @@ export function useSales() {
         `)
         .order('date', { ascending: false });
 
+      console.log('Sales:', data);
+
       if (error) throw error;
       setSales(data || []);
     } catch (err) {
