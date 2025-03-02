@@ -7,6 +7,7 @@ import {
   Wrench,
   ArrowRight,
   Clock,
+  TrendingUp,
 } from "lucide-react";
 import { useDashboard } from "../hooks/useDashboard";
 import { useSales } from "../hooks/useSales";
@@ -24,7 +25,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 function Dashboard() {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
-  const [filterType, setFilterType] = useState<string>("month"); // Default to "month"
+  const [filterType, setFilterType] = useState<string>("month");
   const { stats, loading } = useDashboard(startDate, endDate);
   const { sales } = useSales();
   const { products } = useProducts();
@@ -39,7 +40,7 @@ function Dashboard() {
     total: 0,
   });
 
-  // Function to set date range based on filter type
+  // Set date range based on filter type
   const setDateRange = (type: string) => {
     const today = new Date();
     let newStartDate = "";
@@ -50,7 +51,7 @@ function Dashboard() {
         newStartDate = newEndDate;
         break;
       case "week":
-        newStartDate = format(startOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd"); // Assuming week starts on Monday
+        newStartDate = format(startOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd");
         break;
       case "month":
         newStartDate = format(startOfMonth(today), "yyyy-MM-dd");
@@ -65,12 +66,11 @@ function Dashboard() {
     setFilterType(type);
   };
 
-  // Set initial date range to current month
   useEffect(() => {
     setDateRange("month");
   }, []);
 
-  // Calcular ganancias en el rango seleccionado
+  // Calculate profits in the selected range
   useEffect(() => {
     if (sales.length > 0 && products.length > 0 && services.length > 0 && records.length > 0) {
       const filteredSales = sales.filter((sale) => 
@@ -126,6 +126,7 @@ function Dashboard() {
 
   const totalRevenue = stats.monthlySales + stats.monthlyPrintingRevenue;
   const profitMargin = totalRevenue > 0 ? (monthlyProfit.total / totalRevenue) * 100 : 0;
+  const profitability = monthlyProfit.total - stats.monthlyExpenses; // Profitability calculation
 
   const handleExportAll = () => {
     const success = exportAllProfitsToExcel(sales, products, services, records, undefined, startDate, endDate);
@@ -156,7 +157,7 @@ function Dashboard() {
             value={startDate}
             onChange={(e) => {
               setStartDate(e.target.value);
-              setFilterType(""); // Clear filter type when manually setting dates
+              setFilterType("");
             }}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
@@ -166,7 +167,7 @@ function Dashboard() {
             value={endDate}
             onChange={(e) => {
               setEndDate(e.target.value);
-              setFilterType(""); // Clear filter type when manually setting dates
+              setFilterType("");
             }}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
@@ -189,7 +190,8 @@ function Dashboard() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Ventas */}
           <div className="bg-white p-6 rounded-lg shadow-md">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center">
               <BarChart3 className="mr-2 text-blue-600" size={24} />
@@ -224,6 +226,7 @@ function Dashboard() {
             </Link>
           </div>
 
+          {/* Ganancias */}
           <div className="bg-white p-6 rounded-lg shadow-md">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center">
               <DollarSign className="mr-2 text-green-600" size={24} />
@@ -268,6 +271,7 @@ function Dashboard() {
             </div>
           </div>
 
+          {/* Gastos */}
           <div className="bg-white p-6 rounded-lg shadow-md">
             <h2 className="text-xl font-semibold text-gray-900 flex items-center">
               <DollarSign className="mr-2 text-red-600" size={24} />
@@ -306,6 +310,41 @@ function Dashboard() {
             >
               Ver todos los gastos <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
+          </div>
+
+          {/* Rentabilidad */}
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h2 className="text-xl font-semibold text-gray-900 flex items-center">
+              <TrendingUp className="mr-2 text-teal-600" size={24} />
+              Rentabilidad
+            </h2>
+            <div className="mt-4 space-y-3">
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">Ganancias Totales:</span>
+                <span className="text-sm font-medium text-green-600">{formatMoney(monthlyProfit.total)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600">Gastos Totales:</span>
+                <span className="text-sm font-medium text-red-600">{formatMoney(stats.monthlyExpenses)}</span>
+              </div>
+              <div className="flex justify-between border-t pt-3">
+                <span className="text-sm font-semibold text-gray-700">Rentabilidad Neta:</span>
+                <span
+                  className={`text-xl font-bold ${
+                    profitability >= 0 ? "text-teal-600" : "text-red-600"
+                  }`}
+                >
+                  {formatMoney(profitability)}
+                </span>
+              </div>
+            </div>
+            <div className="mt-4">
+              <p className="text-sm text-gray-500">
+                {profitability >= 0
+                  ? "El negocio está generando ganancias."
+                  : "El negocio está operando con pérdidas."}
+              </p>
+            </div>
           </div>
         </div>
       )}
