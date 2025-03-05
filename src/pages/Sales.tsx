@@ -30,6 +30,7 @@ import { es } from "date-fns/locale"
 import formatMoney from "../utils/format"
 import { PAYMENT_METHODS } from "../hooks/useSales"
 import toast from "react-hot-toast"
+import { useNavigate } from 'react-router-dom'
 
 function Sales() {
   const { sales, loading, addSale, deleteSale } = useSales()
@@ -63,6 +64,7 @@ function Sales() {
   const [showFilters, setShowFilters] = useState(false)
   const [filteredSales, setFilteredSales] = useState<Sale[]>([])
   const [barcodeInput, setBarcodeInput] = useState('');
+  const navigate = useNavigate();
 
 const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   const value = e.target.value;
@@ -317,6 +319,10 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setDateFilter("all")
     setTypeFilter("all")
   }
+
+  const handleGenerateInvoice = (saleId: string) => {
+    navigate(`/invoice/${saleId}`);
+  };
 
   return (
     <div className="space-y-6 p-6 bg-gray-50 min-h-screen">
@@ -575,6 +581,13 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                               title="Ver detalles"
                             >
                               <FileText size={18} />
+                            </button>
+                            <button
+                              onClick={() => handleGenerateInvoice(sale.id)}
+                              className="p-2 rounded-md text-blue-600 hover:bg-blue-50 transition-colors"
+                              title="Generar Factura"
+                            >
+                              <Receipt size={18} className="text-blue-600" />
                             </button>
                             <button
                               onClick={() => handleDeleteSale(sale.id)}

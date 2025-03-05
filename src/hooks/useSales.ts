@@ -182,12 +182,37 @@ export function useSales() {
     }
   }
 
+  async function getSaleById(id: string): Promise<Sale | null> {
+    try {
+      const { data, error } = await supabase
+        .from('sales')
+        .select(`
+          *,
+          items:sale_items(*)
+        `)
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : 'Error al cargar la venta';
+      
+      console.error('Get Sale Error:', err);
+      toast.error(errorMessage);
+      return null;
+    }
+  }
+
   return {
     sales,
     loading,
     error,
     fetchSales,
     addSale,
-    deleteSale
+    deleteSale,
+    getSaleById
   };
 }

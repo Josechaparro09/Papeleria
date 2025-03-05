@@ -10,6 +10,7 @@ import Expenses from './pages/Expenses';
 import PrintingRecords from './pages/PrintingRecords';
 import Services from './pages/Services';
 import Recharges from './pages/Recharges'; // Importar la nueva página
+import Invoice from './pages/Invoice'; // Importar la página de facturas
 import Layout from './components/Layout';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
@@ -144,6 +145,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <RechargeHistory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/invoice/:saleId"
+            element={
+              <ProtectedRoute>
+                <Invoice />
               </ProtectedRoute>
             }
           />

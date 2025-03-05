@@ -256,13 +256,7 @@ const prepareSummaryData = (
  * @returns true si la exportación fue exitosa, false en caso contrario
  */
 export const exportAllProfitsToExcel = (
-  sales: Sale[],
-  products: Product[],
-  services: Service[],
-  printingRecords: PrintingRecord[],
-  specificDate?: string,
-  filename: string = `Reporte_Ganancias_${format(new Date(), "yyyy-MM-dd")}.xlsx`
-): boolean => {
+sales: Sale[], products: Product[], services: Service[], printingRecords: PrintingRecord[], specificDate?: string, filename: string = `Reporte_Ganancias_${format(new Date(), "yyyy-MM-dd")}.xlsx`, endDate?: string): boolean => {
   try {
     // Si se proporciona una fecha específica, filtrar los datos
     if (specificDate) {
