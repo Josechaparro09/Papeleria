@@ -25,7 +25,7 @@ import { useSales } from "../hooks/useSales"
 import { useProducts } from "../hooks/useProducts"
 import { useServices } from "../hooks/useServices"
 import type { Sale, SaleItem } from "../types/database"
-import { format, subDays, isAfter, parseISO, addDays } from "date-fns"
+import { format, subDays, isAfter, parseISO, addDays, startOfDay, isSameDay } from "date-fns"
 import { es } from "date-fns/locale"
 import formatMoney from "../utils/format"
 import { PAYMENT_METHODS } from "../hooks/useSales"
@@ -40,7 +40,7 @@ function Sales() {
   const [showViewModal, setShowViewModal] = useState(false)
   const [currentSale, setCurrentSale] = useState<Sale | null>(null)
   const [saleType, setSaleType] = useState<"product" | "service">("product")
-  const [saleDate, setSaleDate] = useState(format(new Date(), "yyyy-MM-dd HH:mm"))
+  const [saleDate, setSaleDate] = useState(format(new Date(), "yyyy-MM-dd"))
   const [customerName, setCustomerName] = useState('')
   const [paymentMethod, setPaymentMethod] = useState('')
   const [saleItems, setSaleItems] = useState<
@@ -129,29 +129,26 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       // Apply date filter
       if (dateFilter !== "all") {
         const now = new Date()
-        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        const today = startOfDay(now)
 
-        if (dateFilter === "today") {
-          filtered = filtered.filter((sale) => {
-        const saleDate = parseISO(sale.date)
-        const compareDate = new Date(saleDate.getFullYear(), saleDate.getMonth(), saleDate.getDate())
-        return compareDate.getTime() === today.getTime()
-          })
-        } else if (dateFilter === "week") {
-          const weekAgo = subDays(today, 7)
-          filtered = filtered.filter((sale) => {
-        const saleDate = parseISO(sale.date)
-        const compareSaleDate = new Date(saleDate.getFullYear(), saleDate.getMonth(), saleDate.getDate())
-        return isAfter(compareSaleDate, subDays(weekAgo, 1)) && !isAfter(compareSaleDate, now)
-          })
-        } else if (dateFilter === "month") {
-          const monthAgo = subDays(today, 30)
-          filtered = filtered.filter((sale) => {
-        const saleDate = parseISO(sale.date)
-        const compareSaleDate = new Date(saleDate.getFullYear(), saleDate.getMonth(), saleDate.getDate())
-        return isAfter(compareSaleDate, subDays(monthAgo, 1)) && !isAfter(compareSaleDate, now)
-          })
-        }
+        filtered = filtered.filter((sale) => {
+          try {
+            const saleDate = parseISO(sale.date)
+            const compareSaleDate = startOfDay(saleDate)
+
+            if (dateFilter === "today") {
+              return isSameDay(compareSaleDate, today)
+            } else if (dateFilter === "week") {
+              return isAfter(compareSaleDate, subDays(today, 7)) && !isAfter(compareSaleDate, today)
+            } else if (dateFilter === "month") {
+              return isAfter(compareSaleDate, subDays(today, 30)) && !isAfter(compareSaleDate, today)
+            }
+            return true
+          } catch (error) {
+            console.error(`Error filtering date for sale ${sale.id}:`, error)
+            return false
+          }
+        })
       }
 
       // Apply type filter
@@ -160,10 +157,10 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       }
 
       setFilteredSales(filtered)
-        } else {
+    } else {
       setFilteredSales([])
-        }
-      }, [sales, searchTerm, dateFilter, typeFilter, loading])
+    }
+  }, [sales, searchTerm, dateFilter, typeFilter, loading])
 
   // Reset form when changing sale type
   useEffect(() => {
@@ -177,7 +174,8 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   }
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSaleDate(e.target.value)
+    const newDate = e.target.value
+    setSaleDate(newDate)
   }
 
   const handleTypeChange = (type: "product" | "service") => {
@@ -241,11 +239,15 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (saleItems.length === 0) return
 
     const total = calculateTotal()
+    
+    // Formatear la fecha correctamente en formato YYYY-MM-DD
+    const date = new Date(saleDate)
+    const formattedDate = format(date, 'yyyy-MM-dd')
 
     try {
       await addSale(
         {
-          date: saleDate,
+          date: formattedDate,
           total,
           type: saleType,
           customer_name: customerName || null,
@@ -259,7 +261,7 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       )
 
       // Reset form
-      setSaleDate(format(new Date(), "yyyy-MM-dd HH:mm"))
+      setSaleDate(format(new Date(), "yyyy-MM-dd"))
       setSaleType("product")
       setSaleItems([])
       setCustomerName('')
@@ -300,15 +302,42 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   // Group sales by date
   const groupedSales: { [key: string]: Sale[] } = {}
   filteredSales.forEach((sale) => {
-    const date = sale.date
-    if (!groupedSales[date]) {
-      groupedSales[date] = []
+    try {
+      // Parsear y formatear la fecha de manera segura
+      const saleDate = parseISO(sale.date)
+      const formattedDate = format(saleDate, 'yyyy-MM-dd')
+      
+      if (!groupedSales[formattedDate]) {
+        groupedSales[formattedDate] = []
+      }
+      groupedSales[formattedDate].push(sale)
+    } catch (error) {
+      console.error(`Error processing date for sale ${sale.id}:`, error)
     }
-    groupedSales[date].push(sale)
   })
 
   // Sort dates in descending order
-  const sortedDates = Object.keys(groupedSales).sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+  const sortedDates = Object.keys(groupedSales).sort((a, b) => {
+    try {
+      const dateA = parseISO(a)
+      const dateB = parseISO(b)
+      return dateB.getTime() - dateA.getTime()
+    } catch (error) {
+      console.error('Error sorting dates:', error)
+      return 0
+    }
+  })
+
+  // Función auxiliar para formatear fechas de manera segura
+  const formatSaleDate = (dateString: string) => {
+    try {
+      const date = parseISO(dateString)
+      return format(date, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })
+    } catch (error) {
+      console.error('Error formatting date:', error)
+      return 'Fecha inválida'
+    }
+  }
 
   // Calculate total sales amount
   const totalSalesAmount = filteredSales.reduce((sum, sale) => sum + sale.total, 0)
@@ -531,7 +560,7 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                 <div className="px-6 py-3 bg-gray-50 flex items-center">
                   <Calendar className="h-4 w-4 text-gray-500 mr-2" />
                   <h3 className="text-sm font-medium text-gray-700">
-                    {format(addDays(new Date(date), 1), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })}
+                    {formatSaleDate(date)}
                   </h3>
                 </div>
                 <div className="divide-y divide-gray-100">
@@ -734,7 +763,8 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                 <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 mb-4">
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      {saleType === "product" ? "Producto" : "Servicio"}</label>
+                      {saleType === "product" ? "Producto" : "Servicio"}
+                    </label>
                     <select
                       name="itemId"
                       value={itemForm.itemId}
