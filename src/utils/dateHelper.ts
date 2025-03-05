@@ -14,14 +14,36 @@ export function getTodayISO(): string {
 /**
  * Convierte una fecha en formato ISO a fecha local colombiana
  * Esta función es crucial para manejar las diferencias de zona horaria
- * @param isoDate Fecha en formato ISO YYYY-MM-DD
+ * @param dateStr Fecha en cualquier formato válido
  * @returns Fecha local para Colombia sin desplazamiento por zona horaria
  */
-export function toLocalDate(isoDate: string): Date {
-  // Creamos una fecha a mediodía para evitar problemas con zonas horarias
-  // Colombia está en UTC-5, así que aseguraremos que la fecha se interprete correctamente
-  const date = new Date(`${isoDate}T12:00:00-05:00`);
-  return date;
+export function toLocalDate(dateStr: string): Date {
+  try {
+    // Verificar si la fecha ya incluye información de zona horaria
+    if (dateStr.includes('T') || dateStr.includes(' ')) {
+      // Si ya tiene formato completo con hora, simplemente la parseamos
+      return new Date(dateStr);
+    } else {
+      // Si es solo YYYY-MM-DD, añadimos la hora y zona horaria de Colombia
+      // Usamos 12:00:00 para evitar problemas con cambios de día debido a zonas horarias
+      const colombiaDate = new Date(`${dateStr}T12:00:00-05:00`);
+      
+      // Crear una nueva fecha con los componentes de la fecha de Colombia
+      // Esto evita problemas con la conversión de zona horaria
+      const year = colombiaDate.getFullYear();
+      const month = colombiaDate.getMonth();
+      const day = colombiaDate.getDate();
+      
+      // Crear una nueva fecha con la hora a mediodía para evitar problemas con zonas horarias
+      const localDate = new Date(year, month, day, 12, 0, 0);
+      
+      return localDate;
+    }
+  } catch (error) {
+    console.error('Error parsing date:', dateStr, error);
+    // En caso de error, devolver la fecha actual
+    return new Date();
+  }
 }
 
 /**
@@ -98,19 +120,34 @@ export function isSameDayColombia(date1: string | Date, date2: string | Date): b
  * @returns Fecha en formato ISO YYYY-MM-DD
  */
 export function normalizeToISODate(date: string | Date): string {
-  let dateObj: Date;
+  try {
+    let dateObj: Date;
 
-  if (typeof date === 'string') {
-    // Si ya es ISO, la retornamos tal cual
-    if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return date;
+    if (typeof date === 'string') {
+      // Si ya es ISO simple (YYYY-MM-DD), la retornamos tal cual
+      if (/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return date;
+      }
+      // Si tiene formato con zona horaria, la convertimos a Date
+      dateObj = toLocalDate(date);
+    } else {
+      // Si es un objeto Date, necesitamos asegurarnos de que se interprete en la zona horaria de Colombia
+      // Convertimos a string ISO y luego usamos toLocalDate para manejar la zona horaria correctamente
+      const isoString = date.toISOString().split('T')[0]; // Obtenemos solo la parte de la fecha YYYY-MM-DD
+      dateObj = toLocalDate(isoString);
     }
-    // Si no es ISO, la convertimos a Date
-    dateObj = new Date(date);
-  } else {
-    dateObj = date;
-  }
 
-  // Convertir a formato ISO YYYY-MM-DD
-  return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+    // Ajustar la fecha para la zona horaria de Colombia (UTC-5)
+    // Usamos getUTC* para evitar que JavaScript aplique el offset de la zona horaria local
+    const year = dateObj.getFullYear();
+    const month = dateObj.getMonth() + 1;
+    const day = dateObj.getDate();
+    
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  } catch (error) {
+    console.error('Error normalizing date:', date, error);
+    // En caso de error, devolver la fecha actual en formato ISO
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  }
 }

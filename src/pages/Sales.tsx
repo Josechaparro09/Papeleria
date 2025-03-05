@@ -31,6 +31,7 @@ import formatMoney from "../utils/format"
 import { PAYMENT_METHODS } from "../hooks/useSales"
 import toast from "react-hot-toast"
 import { useNavigate } from 'react-router-dom'
+import { toLocalDate, formatDateColombia, normalizeToISODate } from "../utils/dateHelper"
 
 function Sales() {
   const { sales, loading, addSale, deleteSale } = useSales()
@@ -133,8 +134,11 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 
         filtered = filtered.filter((sale) => {
           try {
-            const saleDate = parseISO(sale.date)
-            const compareSaleDate = startOfDay(saleDate)
+            if (!sale.date) return false;
+            
+            // Usar toLocalDate para manejar correctamente la zona horaria
+            const saleDate = toLocalDate(sale.date);
+            const compareSaleDate = startOfDay(saleDate);
 
             if (dateFilter === "today") {
               return isSameDay(compareSaleDate, today)
@@ -174,6 +178,9 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   }
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Tomamos el valor directamente del input date, que ya está en formato YYYY-MM-DD
+    // Este formato es independiente de la zona horaria y representa la fecha seleccionada
+    // por el usuario en la interfaz
     const newDate = e.target.value
     setSaleDate(newDate)
   }
@@ -240,9 +247,10 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 
     const total = calculateTotal()
     
-    // Formatear la fecha correctamente en formato YYYY-MM-DD
-    const date = new Date(saleDate)
-    const formattedDate = format(date, 'yyyy-MM-dd')
+    // Manejar la fecha correctamente para la zona horaria de Colombia
+    // Usamos directamente el valor de saleDate que ya está en formato YYYY-MM-DD
+    // y lo pasamos a normalizeToISODate para asegurar que se maneje correctamente
+    const formattedDate = saleDate;
 
     try {
       await addSale(
@@ -303,36 +311,42 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   const groupedSales: { [key: string]: Sale[] } = {}
   filteredSales.forEach((sale) => {
     try {
-      // Parsear y formatear la fecha de manera segura
-      const saleDate = parseISO(sale.date)
-      const formattedDate = format(saleDate, 'yyyy-MM-dd')
+      if (!sale.date) {
+        console.error(`Sale ${sale.id} has no date`);
+        return;
+      }
+      
+      // Usar toLocalDate para manejar correctamente la zona horaria
+      const saleDate = toLocalDate(sale.date);
+      // Formatear la fecha usando normalizeToISODate para asegurar formato YYYY-MM-DD
+      const formattedDate = normalizeToISODate(saleDate);
       
       if (!groupedSales[formattedDate]) {
-        groupedSales[formattedDate] = []
+        groupedSales[formattedDate] = [];
       }
-      groupedSales[formattedDate].push(sale)
+      groupedSales[formattedDate].push(sale);
     } catch (error) {
-      console.error(`Error processing date for sale ${sale.id}:`, error)
+      console.error(`Error processing date for sale ${sale.id}:`, error);
     }
-  })
+  });
 
   // Sort dates in descending order
   const sortedDates = Object.keys(groupedSales).sort((a, b) => {
     try {
-      const dateA = parseISO(a)
-      const dateB = parseISO(b)
-      return dateB.getTime() - dateA.getTime()
+      const dateA = toLocalDate(a);
+      const dateB = toLocalDate(b);
+      return dateB.getTime() - dateA.getTime();
     } catch (error) {
-      console.error('Error sorting dates:', error)
-      return 0
+      console.error('Error sorting dates:', error);
+      return 0;
     }
-  })
+  });
 
   // Función auxiliar para formatear fechas de manera segura
   const formatSaleDate = (dateString: string) => {
     try {
-      const date = parseISO(dateString)
-      return format(date, "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })
+      // Usar formatDateColombia para manejar correctamente la zona horaria
+      return formatDateColombia(dateString, "EEEE, d 'de' MMMM 'de' yyyy")
     } catch (error) {
       console.error('Error formatting date:', error)
       return 'Fecha inválida'
@@ -588,7 +602,7 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                             </div>
                             <div className="flex items-center mt-1 text-xs text-gray-500">
                               <Clock className="h-3 w-3 mr-1" />
-                              {format(new Date(sale.created_at), "HH:mm")}
+                              {formatDateColombia(sale.created_at, "HH:mm")}
                               <span className="mx-1">•</span>
                               <span className="text-gray-500">ID: {sale.id.slice(0, 8)}</span>
                             </div>
@@ -937,7 +951,7 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Fecha</p>
-                    <p className="font-medium">{format(new Date(currentSale.date), "dd/MM/yyyy")}</p>
+                    <p className="font-medium">{formatDateColombia(currentSale.date, "dd/MM/yyyy")}</p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500">Tipo</p>

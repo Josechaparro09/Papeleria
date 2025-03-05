@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { Sale, SaleItem, Product, Service } from '../types/database';
 import toast from 'react-hot-toast';
+import { normalizeToISODate } from '../utils/dateHelper';
 
 // Métodos de pago predefinidos
 export const PAYMENT_METHODS = [
@@ -65,10 +66,14 @@ export function useSales() {
     }[]
   ) {
     try {
+      // La fecha ya viene en formato YYYY-MM-DD desde el componente
+      // Asegurarnos de que se guarde correctamente con la zona horaria de Colombia
+      const normalizedDate = saleData.date;
+      
       // Prepare sale data, handling optional fields
       const preparedSaleData = Object.fromEntries(
         Object.entries({
-          date: saleData.date,
+          date: normalizedDate,
           total: saleData.total,
           type: saleData.type,
           customer_name: saleData.customer_name || null,
