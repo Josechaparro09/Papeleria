@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Printer, Pencil, Trash2, X, Copy, FileText, Search, ChevronDown, ChevronUp } from 'lucide-react';
 import { usePrintingRecords } from '../hooks/usePrintingRecords';
 import { PrintingRecord } from '../types/database';
@@ -11,6 +11,11 @@ function PrintingRecords() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentRecord, setCurrentRecord] = useState<PrintingRecord | null>(null);
   const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null);
+  const [dateRange, setDateRange] = useState({
+    startDate: getTodayISO(),
+    endDate: getTodayISO()
+  });
+  const [isRangeMode, setIsRangeMode] = useState(false);
   const [formData, setFormData] = useState({
     date: getTodayISO(),
     copies: '0',
@@ -22,9 +27,29 @@ function PrintingRecords() {
   });
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredRecords = records.filter(record =>
-    record.date.includes(searchTerm) || record.id.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredRecords = records.filter(record => {
+    const matchesSearch = record.date.includes(searchTerm) || 
+                         record.id.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (!matchesSearch) return false;
+
+    if (!dateRange.startDate || !dateRange.endDate) return true;
+
+    if (isRangeMode) {
+      return record.date >= dateRange.startDate && record.date <= dateRange.endDate;
+    } else {
+      return record.date === dateRange.startDate;
+    }
+  });
+
+  const dateTotals = useMemo(() => {
+    return filteredRecords.reduce((acc, record) => ({
+      copies: acc.copies + record.copies,
+      prints: acc.prints + record.prints,
+      damaged: acc.damaged + record.damaged_sheets,
+      total: acc.total + record.copies + record.prints + record.damaged_sheets
+    }), { copies: 0, prints: 0, damaged: 0, total: 0 });
+  }, [filteredRecords]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -136,6 +161,141 @@ function PrintingRecords() {
           >
             <FileText className="mr-2" size={18} /> Impresiones
           </button>
+        </div>
+      </div>
+
+      {/* Filtros y Resumen */}
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Filtros */}
+        <div className="bg-white p-4 rounded-xl shadow-sm">
+          <div className="flex flex-col space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Filtrar por fecha
+              </label>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    setIsRangeMode(false);
+                    setDateRange({
+                      startDate: getTodayISO(),
+                      endDate: getTodayISO()
+                    });
+                  }}
+                  className={`text-sm px-2 py-1 rounded ${!isRangeMode ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                >
+                  Día específico
+                </button>
+                <button
+                  onClick={() => setIsRangeMode(true)}
+                  className={`text-sm px-2 py-1 rounded ${isRangeMode ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-100'}`}
+                >
+                  Rango
+                </button>
+              </div>
+            </div>
+
+            {isRangeMode ? (
+              <div className="space-y-3">
+                <div>
+                  <label htmlFor="startDate" className="block text-sm font-medium text-gray-600 mb-1">
+                    Fecha inicial
+                  </label>
+                  <input
+                    type="date"
+                    id="startDate"
+                    value={dateRange.startDate}
+                    onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                    max={dateRange.endDate}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="endDate" className="block text-sm font-medium text-gray-600 mb-1">
+                    Fecha final
+                  </label>
+                  <input
+                    type="date"
+                    id="endDate"
+                    value={dateRange.endDate}
+                    onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                    min={dateRange.startDate}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div>
+                <input
+                  type="date"
+                  id="singleDate"
+                  value={dateRange.startDate}
+                  onChange={(e) => setDateRange({ startDate: e.target.value, endDate: e.target.value })}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+            )}
+
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => {
+                  const today = getTodayISO();
+                  setDateRange({ startDate: today, endDate: today });
+                  setIsRangeMode(false);
+                }}
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                Hoy
+              </button>
+              <span className="text-gray-300">|</span>
+              <button
+                onClick={() => {
+                  setDateRange({ startDate: '', endDate: '' });
+                  setIsRangeMode(false);
+                }}
+                className="text-sm text-blue-600 hover:text-blue-800"
+              >
+                Ver todos
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Resumen de hojas */}
+        <div className="bg-white p-4 rounded-xl shadow-sm">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">
+            {isRangeMode ? (
+              dateRange.startDate && dateRange.endDate ? 
+                `Resumen del ${formatDateColombia(dateRange.startDate, "PPP")} al ${formatDateColombia(dateRange.endDate, "PPP")}` :
+                'Resumen total'
+            ) : (
+              dateRange.startDate ? 
+                `Resumen del ${formatDateColombia(dateRange.startDate, "PPP")}` :
+                'Resumen total'
+            )}
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <div>
+                <span className="text-sm text-gray-600">Copias:</span>
+                <p className="text-2xl font-bold text-green-600">{dateTotals.copies}</p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-600">Impresiones:</span>
+                <p className="text-2xl font-bold text-blue-600">{dateTotals.prints}</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div>
+                <span className="text-sm text-gray-600">Hojas dañadas:</span>
+                <p className="text-2xl font-bold text-red-600">{dateTotals.damaged}</p>
+              </div>
+              <div>
+                <span className="text-sm text-gray-600">Total hojas:</span>
+                <p className="text-2xl font-bold text-gray-900">{dateTotals.total}</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

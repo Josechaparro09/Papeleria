@@ -50,6 +50,7 @@ function Sales() {
       name: string
       price: number
       quantity: number
+      type: "product" | "service"
     }[]
   >([])
 
@@ -80,10 +81,11 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         name: product.name,
         price: product.public_price,
         quantity: 1,
+        type: "product" as const
       };
 
       // Check if item already exists in the list
-      const existingItemIndex = saleItems.findIndex((item) => item.id === itemToAdd.id);
+      const existingItemIndex = saleItems.findIndex((item) => item.id === itemToAdd.id && item.type === "product");
 
       if (existingItemIndex >= 0) {
         // Update quantity if item already exists
@@ -166,12 +168,6 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     }
   }, [sales, searchTerm, dateFilter, typeFilter, loading])
 
-  // Reset form when changing sale type
-  useEffect(() => {
-    setSaleItems([])
-    setItemForm({ itemId: "", quantity: 1 })
-  }, [saleType])
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setItemForm({ ...itemForm, [name]: value })
@@ -202,6 +198,7 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         name: product.name,
         price: product.public_price,
         quantity: Number(itemForm.quantity),
+        type: "product" as const
       }
     } else {
       const service = services.find((s) => s.id === itemForm.itemId)
@@ -212,11 +209,12 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         name: service.name,
         price: service.price,
         quantity: Number(itemForm.quantity),
+        type: "service" as const
       }
     }
 
     // Check if item already exists in the list
-    const existingItemIndex = saleItems.findIndex((item) => item.id === itemToAdd.id)
+    const existingItemIndex = saleItems.findIndex((item) => item.id === itemToAdd.id && item.type === itemToAdd.type)
 
     if (existingItemIndex >= 0) {
       // Update quantity if item already exists
@@ -253,16 +251,25 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const formattedDate = saleDate;
 
     try {
+      // Determine sale type based on items
+      const hasProducts = saleItems.some(item => item.type === "product");
+      const hasServices = saleItems.some(item => item.type === "service");
+      
+      // If both products and services are present, set type to "mixed"
+      // Otherwise, use the type of the items
+      const saleTypeToUse = hasProducts && hasServices ? "mixed" : (hasProducts ? "product" : "service");
+
       await addSale(
         {
           date: formattedDate,
           total,
-          type: saleType,
+          type: saleTypeToUse,
           customer_name: customerName || null,
           payment_method: paymentMethod || null
         },
         saleItems.map(item => ({
-          [saleType === 'product' ? 'product_id' : 'service_id']: item.id,
+          product_id: item.type === "product" ? item.id : undefined,
+          service_id: item.type === "service" ? item.id : undefined,
           quantity: item.quantity,
           price: item.price
         }))
@@ -390,7 +397,7 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
           <div className="flex justify-between items-start">
             <div>
@@ -412,8 +419,11 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
               <p className="text-sm text-gray-500">Productos vendidos</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
                 {filteredSales
-                  .filter((sale) => sale.type === "product")
-                  .reduce((sum, sale) => sum + (sale.items?.length || 0), 0)}
+                  .filter((sale) => sale.type === "product" || sale.type === "mixed")
+                  .reduce((sum, sale) => {
+                    // Count only product items
+                    return sum + (sale.items?.filter(item => item.product_id)?.length || 0)
+                  }, 0)}
               </p>
             </div>
             <div className="p-2 bg-green-100 rounded-full">
@@ -431,8 +441,11 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
               <p className="text-sm text-gray-500">Servicios prestados</p>
               <p className="text-2xl font-bold text-gray-900 mt-1">
                 {filteredSales
-                  .filter((sale) => sale.type === "service")
-                  .reduce((sum, sale) => sum + (sale.items?.length || 0), 0)}
+                  .filter((sale) => sale.type === "service" || sale.type === "mixed")
+                  .reduce((sum, sale) => {
+                    // Count only service items
+                    return sum + (sale.items?.filter(item => item.service_id)?.length || 0)
+                  }, 0)}
               </p>
             </div>
             <div className="p-2 bg-purple-100 rounded-full">
@@ -443,229 +456,223 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
             {filteredSales.filter((sale) => sale.type === "service").length} ventas de servicios
           </p>
         </div>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+          <div className="flex justify-between items-start">
+            <div>
+              <p className="text-sm text-gray-500">Ventas mixtas</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">
+                {filteredSales.filter((sale) => sale.type === "mixed").length}
+              </p>
+            </div>
+            <div className="p-2 bg-amber-100 rounded-full">
+              <ShoppingCart className="h-5 w-5 text-amber-600" />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            Productos y servicios
+          </p>
+        </div>
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-        <div className="p-4 border-b border-gray-100">
-          <div className="flex flex-col md:flex-row gap-4 justify-between">
-            <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
-              </div>
-              <input
-                type="text"
-                placeholder="Buscar ventas..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center space-x-2 px-3 py-2 rounded-lg border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1 relative">
+            <input
+              type="text"
+              placeholder="Buscar ventas..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+            />
+            <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <div className="relative">
+              <select
+                value={dateFilter}
+                onChange={(e) => setDateFilter(e.target.value as any)}
+                className="pl-10 pr-4 py-2 border rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               >
-                <Filter size={16} className="text-gray-400" />
-                <span>Filtros</span>
-                {showFilters ? (
-                  <ChevronUp size={16} className="text-gray-400" />
-                ) : (
-                  <ChevronDown size={16} className="text-gray-400" />
-                )}
-              </button>
-
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => {}}
-                  className="p-2 rounded-lg border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                  title="Exportar ventas"
-                >
-                  <Download size={16} className="text-gray-600" />
-                </button>
-                <button
-                  onClick={() => {}}
-                  className="p-2 rounded-lg border bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                  title="Imprimir reporte"
-                >
-                  <Printer size={16} className="text-gray-600" />
-                </button>
-              </div>
+                <option value="all">Todas las fechas</option>
+                <option value="today">Hoy</option>
+                <option value="week">Esta semana</option>
+                <option value="month">Este mes</option>
+              </select>
+              <Calendar className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
             </div>
+
+            <div className="relative">
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value as any)}
+                className="pl-10 pr-4 py-2 border rounded-lg appearance-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              >
+                <option value="all">Todos los tipos</option>
+                <option value="product">Productos</option>
+                <option value="service">Servicios</option>
+                <option value="mixed">Mixtas</option>
+              </select>
+              <ShoppingCart className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
+            </div>
+
+            <button
+              onClick={resetFilters}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              Limpiar filtros
+            </button>
           </div>
-
-          {showFilters && (
-            <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
-                <select
-                  value={dateFilter}
-                  onChange={(e) => setDateFilter(e.target.value as any)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="all">Todas las fechas</option>
-                  <option value="today">Hoy</option>
-                  <option value="week">Última semana</option>
-                  <option value="month">Último mes</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                <select
-                  value={typeFilter}
-                  onChange={(e) => setTypeFilter(e.target.value as any)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="all">Todos los tipos</option>
-                  <option value="product">Productos</option>
-                  <option value="service">Servicios</option>
-                </select>
-              </div>
-              <div className="flex items-end">
-                <button
-                  onClick={resetFilters}
-                  className="px-4 py-2 text-sm text-blue-600 hover:text-blue-800 flex items-center"
-                >
-                  <X size={16} className="mr-1" />
-                  Limpiar filtros
-                </button>
-              </div>
-            </div>
-          )}
         </div>
+      </div>
 
-        {loading ? (
-          <div className="p-8">
-            <div className="flex flex-col items-center justify-center">
-              <div className="w-16 h-16 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
-              <p className="mt-4 text-gray-600">Cargando ventas...</p>
-            </div>
+      {loading ? (
+        <div className="p-8">
+          <div className="flex flex-col items-center justify-center">
+            <div className="w-16 h-16 border-4 border-gray-200 border-t-blue-500 rounded-full animate-spin"></div>
+            <p className="mt-4 text-gray-600">Cargando ventas...</p>
           </div>
-        ) : filteredSales.length === 0 ? (
-          <div className="p-8">
-            <div className="flex flex-col items-center justify-center text-gray-500 py-8">
-              <div className="p-4 bg-gray-100 rounded-full">
-                <AlertCircle className="h-12 w-12 text-gray-400" />
+        </div>
+      ) : filteredSales.length === 0 ? (
+        <div className="p-8">
+          <div className="flex flex-col items-center justify-center text-gray-500 py-8">
+            <div className="p-4 bg-gray-100 rounded-full">
+              <AlertCircle className="h-12 w-12 text-gray-400" />
+            </div>
+            <h3 className="mt-4 text-lg font-medium text-gray-900">
+              {searchTerm || dateFilter !== "all" || typeFilter !== "all"
+                ? "No se encontraron ventas"
+                : "No hay ventas registradas"}
+            </h3>
+            <p className="mt-2 text-sm text-gray-500 text-center max-w-md">
+              {searchTerm || dateFilter !== "all" || typeFilter !== "all"
+                ? "Intenta con otros términos de búsqueda o elimina los filtros aplicados."
+                : "Las ventas que registres aparecerán aquí."}
+            </p>
+            {(searchTerm || dateFilter !== "all" || typeFilter !== "all") && (
+              <button
+                onClick={resetFilters}
+                className="mt-4 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div>
+          {sortedDates.map((date) => (
+            <div key={date} className="border-b border-gray-100 last:border-b-0">
+              <div className="px-6 py-3 bg-gray-50 flex items-center">
+                <Calendar className="h-4 w-4 text-gray-500 mr-2" />
+                <h3 className="text-sm font-medium text-gray-700">
+                  {formatSaleDate(date)}
+                </h3>
               </div>
-              <h3 className="mt-4 text-lg font-medium text-gray-900">
-                {searchTerm || dateFilter !== "all" || typeFilter !== "all"
-                  ? "No se encontraron ventas"
-                  : "No hay ventas registradas"}
-              </h3>
-              <p className="mt-2 text-sm text-gray-500 text-center max-w-md">
-                {searchTerm || dateFilter !== "all" || typeFilter !== "all"
-                  ? "Intenta con otros términos de búsqueda o elimina los filtros aplicados."
-                  : "Las ventas que registres aparecerán aquí."}
-              </p>
-              {(searchTerm || dateFilter !== "all" || typeFilter !== "all") && (
-                <button
-                  onClick={resetFilters}
-                  className="mt-4 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-                >
-                  Limpiar filtros
-                </button>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div>
-            {sortedDates.map((date) => (
-              <div key={date} className="border-b border-gray-100 last:border-b-0">
-                <div className="px-6 py-3 bg-gray-50 flex items-center">
-                  <Calendar className="h-4 w-4 text-gray-500 mr-2" />
-                  <h3 className="text-sm font-medium text-gray-700">
-                    {formatSaleDate(date)}
-                  </h3>
-                </div>
-                <div className="divide-y divide-gray-100">
-                  {groupedSales[date].map((sale) => (
-                    <div key={sale.id} className="p-4 hover:bg-gray-50 transition-colors">
-                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                        <div className="flex items-start space-x-3">
-                          <div
-                            className={`p-2 rounded-lg ${sale.type === "product" ? "bg-green-100" : "bg-purple-100"}`}
-                          >
-                            {sale.type === "product" ? (
-                              <ShoppingCart size={18} className="text-green-600" />
-                            ) : (
-                              <Wrench size={18} className="text-purple-600" />
-                            )}
-                          </div>
-                          <div>
-                            <div className="flex items-center">
-                              <span className="font-medium text-gray-900">
-                                {sale.type === "product" ? "Venta de productos" : "Venta de servicios"}
-                              </span>
-                              <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-800">
-                                {sale.items?.length || 0} {sale.type === "product" ? "productos" : "servicios"}
-                              </span>
-                            </div>
-                            <div className="flex items-center mt-1 text-xs text-gray-500">
-                              <Clock className="h-3 w-3 mr-1" />
-                              {formatDateColombia(sale.created_at, "HH:mm")}
-                              <span className="mx-1">•</span>
-                              <span className="text-gray-500">ID: {sale.id.slice(0, 8)}</span>
-                            </div>
-                            {sale.items && sale.items.length > 0 && (
-                              <div className="mt-2 text-sm text-gray-500 line-clamp-1">
-                                {sale.items.map((item) => getItemName(item)).join(", ")}
-                              </div>
-                            )}
-                          </div>
+              <div className="divide-y divide-gray-100">
+                {groupedSales[date].map((sale) => (
+                  <div key={sale.id} className="p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div className="flex items-start space-x-3">
+                        <div
+                          className={`p-2 rounded-lg ${
+                            sale.type === "product" 
+                              ? "bg-green-100" 
+                              : sale.type === "service" 
+                                ? "bg-purple-100" 
+                                : "bg-amber-100"
+                          }`}
+                        >
+                          {sale.type === "product" ? (
+                            <ShoppingCart size={18} className="text-green-600" />
+                          ) : sale.type === "service" ? (
+                            <Wrench size={18} className="text-purple-600" />
+                          ) : (
+                            <ShoppingCart size={18} className="text-amber-600" />
+                          )}
                         </div>
-                        <div className="flex items-center space-x-4">
-                          <div className="text-right">
-                            <p className="font-medium text-blue-600 text-lg">{formatMoney(sale.total)}</p>
+                        <div>
+                          <div className="flex items-center">
+                            <span className="font-medium text-gray-900">
+                              {sale.type === "product" 
+                                ? "Venta de productos" 
+                                : sale.type === "service" 
+                                  ? "Venta de servicios" 
+                                  : "Venta mixta"}
+                            </span>
+                            <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-800">
+                              {sale.type === "mixed" 
+                                ? `${sale.items?.filter(item => item.product_id)?.length || 0} productos, ${sale.items?.filter(item => item.service_id)?.length || 0} servicios`
+                                : `${sale.items?.length || 0} ${sale.type === "product" ? "productos" : "servicios"}`}
+                            </span>
                           </div>
-                          <div className="flex space-x-1">
-                            <button
-                              onClick={() => viewSaleDetails(sale)}
-                              className="p-2 rounded-md text-blue-600 hover:bg-blue-50 transition-colors"
-                              title="Ver detalles"
-                            >
-                              <FileText size={18} />
-                            </button>
-                            <button
-                              onClick={() => handleGenerateInvoice(sale.id)}
-                              className="p-2 rounded-md text-blue-600 hover:bg-blue-50 transition-colors"
-                              title="Generar Factura"
-                            >
-                              <Receipt size={18} className="text-blue-600" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteSale(sale.id)}
-                              className="p-2 rounded-md text-red-600 hover:bg-red-50 transition-colors"
-                              title="Eliminar venta"
-                            >
-                              <Trash2 size={18} />
-                            </button>
+                          <div className="flex items-center mt-1 text-xs text-gray-500">
+                            <Clock className="h-3 w-3 mr-1" />
+                            {formatDateColombia(sale.created_at, "HH:mm")}
+                            <span className="mx-1">•</span>
+                            <span className="text-gray-500">ID: {sale.id.slice(0, 8)}</span>
                           </div>
+                          {sale.items && sale.items.length > 0 && (
+                            <div className="mt-2 text-sm text-gray-500 line-clamp-1">
+                              {sale.items.map((item) => getItemName(item)).join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <div className="text-right">
+                          <p className="font-medium text-blue-600 text-lg">{formatMoney(sale.total)}</p>
+                        </div>
+                        <div className="flex space-x-1">
+                          <button
+                            onClick={() => viewSaleDetails(sale)}
+                            className="p-2 rounded-md text-blue-600 hover:bg-blue-50 transition-colors"
+                            title="Ver detalles"
+                          >
+                            <FileText size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleGenerateInvoice(sale.id)}
+                            className="p-2 rounded-md text-blue-600 hover:bg-blue-50 transition-colors"
+                            title="Generar Factura"
+                          >
+                            <Receipt size={18} className="text-blue-600" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteSale(sale.id)}
+                            className="p-2 rounded-md text-red-600 hover:bg-red-50 transition-colors"
+                            title="Eliminar venta"
+                          >
+                            <Trash2 size={18} />
+                          </button>
                         </div>
                       </div>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-
-        {!loading && filteredSales.length > 0 && (
-          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-gray-500">
-                Mostrando {filteredSales.length} de {sales.length} ventas
-              </p>
-              {(searchTerm || dateFilter !== "all" || typeFilter !== "all") && (
-                <button onClick={resetFilters} className="text-sm text-blue-600 hover:text-blue-800 flex items-center">
-                  <X size={14} className="mr-1" />
-                  Limpiar filtros
-                </button>
-              )}
             </div>
+          ))}
+        </div>
+      )}
+
+      {!loading && filteredSales.length > 0 && (
+        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50">
+          <div className="flex justify-between items-center">
+            <p className="text-sm text-gray-500">
+              Mostrando {filteredSales.length} de {sales.length} ventas
+            </p>
+            {(searchTerm || dateFilter !== "all" || typeFilter !== "all") && (
+              <button onClick={resetFilters} className="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                <X size={14} className="mr-1" />
+                Limpiar filtros
+              </button>
+            )}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Add Sale Modal */}
       {showAddModal && (
@@ -685,18 +692,24 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                 <X size={20} />
               </button>
             </div>
-            <div className="flex items-center space-x-2">
-              <input
-                type="text"
-                placeholder="Código de barras"
-                value={barcodeInput}
-                onChange={handleBarcodeInputChange}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-              />
-            </div>
-
-            <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+              {saleType === "product" && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Escanear código de barras
+                  </label>
+                  <input
+                    type="text"
+                    value={barcodeInput}
+                    onChange={handleBarcodeInputChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    placeholder="Escanear código de barras"
+                    autoFocus
+                  />
+                </div>
+              )}
+              
+              <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 mb-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Fecha</label>
                   <div className="relative">
@@ -713,7 +726,7 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                 </div>
                 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de venta</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de ítem a agregar</label>
                   <div className="flex">
                     <button
                       type="button"
@@ -740,7 +753,6 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                       Servicios
                     </button>
                   </div>
-                        
                 </div>
               </div>
 
@@ -823,56 +835,56 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                   </div>
                 </div>
 
-                {/* Sale items list */}
-                <div className="mt-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Artículos</h4>
-                  {saleItems.length === 0 ? (
-                    <div className="text-center py-8 text-gray-500 bg-white rounded-lg border border-dashed border-gray-300">
-                      <ShoppingCart className="mx-auto h-8 w-8 text-gray-300 mb-2" />
-                      <p className="text-sm">No hay artículos agregados</p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        Selecciona {saleType === "product" ? "productos" : "servicios"} para agregar a la venta
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="bg-white border rounded-lg overflow-hidden">
+                {/* Items List */}
+                {saleItems.length > 0 && (
+                  <div className="mt-4">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Ítems agregados</h3>
+                    <div className="border rounded-lg overflow-hidden">
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                              {saleType === "product" ? "Producto" : "Servicio"}
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Tipo
                             </th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              Nombre
+                            </th>
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Precio
                             </th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Cantidad
                             </th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Subtotal
                             </th>
-                            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                               Acciones
                             </th>
                           </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
                           {saleItems.map((item, index) => (
-                            <tr key={index} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.name}</td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                                {formatMoney(item.price)}
+                            <tr key={index}>
+                              <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                                <div className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                  item.type === "product" 
+                                    ? "bg-green-100 text-green-800" 
+                                    : "bg-purple-100 text-purple-800"
+                                }`}>
+                                  {item.type === "product" ? "Producto" : "Servicio"}
+                                </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right">
-                                {item.quantity}
+                              <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{item.name}</td>
+                              <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{formatMoney(item.price)}</td>
+                              <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{item.quantity}</td>
+                              <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {formatMoney(item.price * item.quantity)}
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 text-right">
-                                {formatMoney((item.price * item.quantity))}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                              <td className="px-4 py-2 whitespace-nowrap text-right text-sm font-medium">
                                 <button
                                   onClick={() => removeItem(index)}
-                                  className="text-red-600 hover:text-red-900 p-1 rounded-md hover:bg-red-50"
+                                  className="text-red-600 hover:text-red-900"
                                 >
                                   <Trash2 size={16} />
                                 </button>
@@ -880,22 +892,21 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                             </tr>
                           ))}
                         </tbody>
-                        <tfoot className="bg-gray-50">
-                          <tr>
-                            <td colSpan={3} className="px-6 py-3 text-right text-sm font-medium text-gray-900">
-                              Total:
-                            </td>
-                            <td className="px-6 py-3 text-right text-sm font-medium text-blue-600">
-                              {formatMoney(calculateTotal())}
-                            </td>
-                            <td></td>
-                          </tr>
-                        </tfoot>
                       </table>
                     </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
+
+              {/* Total */}
+              {saleItems.length > 0 && (
+                <div className="mt-4 bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-medium text-gray-700">Total:</span>
+                    <span className="text-xl font-bold text-blue-600">{formatMoney(calculateTotal())}</span>
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-end space-x-3">
                 <button
@@ -925,11 +936,19 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
           <div className="bg-white rounded-lg p-6 w-full max-w-xl">
             <div className="flex justify-between items-center mb-6">
               <div className="flex items-center space-x-3">
-                <div className={`p-2 rounded-lg ${currentSale.type === "product" ? "bg-green-100" : "bg-purple-100"}`}>
+                <div className={`p-2 rounded-lg ${
+                  currentSale.type === "product" 
+                    ? "bg-green-100" 
+                    : currentSale.type === "service" 
+                      ? "bg-purple-100" 
+                      : "bg-amber-100"
+                }`}>
                   {currentSale.type === "product" ? (
                     <ShoppingCart className="h-5 w-5 text-green-600" />
-                  ) : (
+                  ) : currentSale.type === "service" ? (
                     <Wrench className="h-5 w-5 text-purple-600" />
+                  ) : (
+                    <ShoppingCart className="h-5 w-5 text-amber-600" />
                   )}
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900">Detalles de Venta</h3>
@@ -961,10 +980,15 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
                           <ShoppingCart size={16} className="mr-1 text-green-500" />
                           Venta de productos
                         </>
-                      ) : (
+                      ) : currentSale.type === "service" ? (
                         <>
                           <Wrench size={16} className="mr-1 text-purple-500" />
                           Venta de servicios
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart size={16} className="mr-1 text-amber-500" />
+                          Venta mixta
                         </>
                       )}
                     </p>
@@ -1044,7 +1068,7 @@ const handleBarcodeInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
               <div className="flex justify-end space-x-3">
                 <button
                   type="button"
-                  onClick={() => {}}
+                  onClick={() => {handleGenerateInvoice(currentSale.id)}}
                   className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors flex items-center"
                 >
                   <Printer size={16} className="mr-2" />

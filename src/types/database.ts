@@ -32,7 +32,7 @@ export interface Sale {
   id: string;
   date: string;
   total: number;
-  type: 'product' | 'service';
+  type: 'product' | 'service' | 'mixed';
   customer_name?: string | null;
   payment_method?: string | null;
   items?: SaleItem[]; // items es opcional porque no es una columna real

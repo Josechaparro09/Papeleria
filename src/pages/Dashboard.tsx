@@ -21,6 +21,8 @@ import { exportAllProfitsToExcel } from "../utils/excelExport";
 import { format, subDays, startOfWeek, startOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { toLocalDate } from "../utils/dateHelper";
+import type { Sale } from "../types/database";
 
 function Dashboard() {
   const [startDate, setStartDate] = useState<string>("");
@@ -32,6 +34,7 @@ function Dashboard() {
   const { services } = useServices();
   const { records } = usePrintingRecords();
   const { expenses, loading: expensesLoading } = useExpenses();
+  const [filteredSales, setFilteredSales] = useState<Sale[]>([]);
 
   const [monthlyProfit, setMonthlyProfit] = useState({
     products: 0,
@@ -43,18 +46,21 @@ function Dashboard() {
   // Set date range based on filter type
   const setDateRange = (type: string) => {
     const today = new Date();
+    const todayStr = format(today, "yyyy-MM-dd");
     let newStartDate = "";
-    let newEndDate = format(today, "yyyy-MM-dd");
+    let newEndDate = todayStr;
 
     switch (type) {
       case "today":
-        newStartDate = newEndDate;
+        newStartDate = todayStr;
         break;
       case "week":
-        newStartDate = format(startOfWeek(today, { weekStartsOn: 1 }), "yyyy-MM-dd");
+        const weekStart = startOfWeek(today, { weekStartsOn: 1 });
+        newStartDate = format(weekStart, "yyyy-MM-dd");
         break;
       case "month":
-        newStartDate = format(startOfMonth(today), "yyyy-MM-dd");
+        const monthStart = startOfMonth(today);
+        newStartDate = format(monthStart, "yyyy-MM-dd");
         break;
       default:
         newStartDate = "";
@@ -70,34 +76,99 @@ function Dashboard() {
     setDateRange("month");
   }, []);
 
+  // Apply filters
+  useEffect(() => {
+    if (!loading) {
+      const filtered = sales.filter((sale) => {
+        if (!sale.date) return false;
+        try {
+          const saleDate = new Date(sale.date);
+          
+          if (startDate && endDate) {
+            const start = new Date(`${startDate}T00:00:00-05:00`);
+            const end = new Date(`${endDate}T23:59:59-05:00`);
+            return saleDate >= start && saleDate <= end;
+          }
+          return true;
+        } catch (error) {
+          console.error('Error comparing dates:', error);
+          return false;
+        }
+      });
+      setFilteredSales(filtered);
+    } else {
+      setFilteredSales([]);
+    }
+  }, [sales, startDate, endDate, loading]);
+
   // Calculate profits in the selected range
   useEffect(() => {
     if (sales.length > 0 && products.length > 0 && services.length > 0 && records.length > 0) {
-      const filteredSales = sales.filter((sale) => 
-        (!startDate || sale.date >= startDate) && (!endDate || sale.date <= endDate)
-      );
-      const filteredRecords = records.filter((record) => 
-        (!startDate || record.date >= startDate) && (!endDate || record.date <= endDate)
-      );
+      const filteredSales = sales.filter((sale) => {
+        if (!sale.date) return false;
+        try {
+          // Convertir la fecha de la venta a un objeto Date
+          const saleDate = new Date(sale.date);
+          
+          if (startDate && endDate) {
+            // Convertir las fechas de inicio y fin a objetos Date y ajustar al final del día para endDate
+            const start = new Date(`${startDate}T00:00:00-05:00`);
+            const end = new Date(`${endDate}T23:59:59-05:00`);
+            
+            // Comparar las fechas
+            return saleDate >= start && saleDate <= end;
+          }
+          return true;
+        } catch (error) {
+          console.error('Error comparing dates:', error);
+          return false;
+        }
+      });
+
+      const filteredRecords = records.filter((record) => {
+        if (!record.date) return false;
+        try {
+          // Convertir la fecha del registro a un objeto Date
+          const recordDate = new Date(`${record.date}T00:00:00-05:00`);
+          
+          if (startDate && endDate) {
+            // Convertir las fechas de inicio y fin a objetos Date y ajustar al final del día para endDate
+            const start = new Date(`${startDate}T00:00:00-05:00`);
+            const end = new Date(`${endDate}T23:59:59-05:00`);
+            
+            // Comparar las fechas
+            return recordDate >= start && recordDate <= end;
+          }
+          return true;
+        } catch (error) {
+          console.error('Error comparing dates:', error);
+          return false;
+        }
+      });
 
       const productProfit = filteredSales
-        .filter((sale) => sale.type === "product")
+        .filter((sale) => sale.type === "product" || sale.type === "mixed")
         .reduce((sum, sale) => {
           return (
             sum +
             (sale.items?.reduce((acc: number, item: any) => {
+              if (!item.product_id) return acc;
               const product = products.find((p) => p.id === item.product_id);
+              if (!product) return acc;
               return acc + ((item.price - (product?.purchase_price || 0)) * item.quantity);
             }, 0) || 0)
           );
         }, 0);
 
       const serviceProfit = filteredSales
-        .filter((sale) => sale.type === "service")
+        .filter((sale) => sale.type === "service" || sale.type === "mixed")
         .reduce((sum, sale) => {
           return (
             sum +
-            (sale.items?.reduce((acc: number, item: any) => acc + item.price * item.quantity * 0.8, 0) || 0)
+            (sale.items?.reduce((acc: number, item: any) => {
+              if (!item.service_id) return acc;
+              return acc + item.price * item.quantity;
+            }, 0) || 0)
           );
         }, 0);
 
@@ -119,14 +190,40 @@ function Dashboard() {
   }, [sales, products, services, records, startDate, endDate]);
 
   const chartData = [
-    { name: "Productos", ventas: stats.monthlyProductSales, color: "#3B82F6" },
-    { name: "Servicios", ventas: stats.monthlyServiceSales, color: "#8B5CF6" },
-    { name: "Impresiones", ventas: stats.monthlyPrintingRevenue, color: "#10B981" },
+    { 
+      name: "Productos", 
+      ventas: filteredSales
+        .filter((sale: Sale) => sale.type === "product" || sale.type === "mixed")
+        .reduce((sum: number, sale: Sale) => {
+          return sum + (sale.items?.reduce((acc: number, item: any) => {
+            if (!item.product_id) return acc;
+            return acc + (item.price * item.quantity);
+          }, 0) || 0);
+        }, 0),
+      color: "#3B82F6" 
+    },
+    { 
+      name: "Servicios", 
+      ventas: filteredSales
+        .filter((sale: Sale) => sale.type === "service" || sale.type === "mixed")
+        .reduce((sum: number, sale: Sale) => {
+          return sum + (sale.items?.reduce((acc: number, item: any) => {
+            if (!item.service_id) return acc;
+            return acc + (item.price * item.quantity);
+          }, 0) || 0);
+        }, 0),
+      color: "#8B5CF6" 
+    },
+    { 
+      name: "Impresiones", 
+      ventas: stats.monthlyPrintingRevenue, 
+      color: "#10B981" 
+    },
   ];
 
-  const totalRevenue = stats.monthlySales + stats.monthlyPrintingRevenue;
+  const totalRevenue = chartData.reduce((sum, item) => sum + item.ventas, 0);
   const profitMargin = totalRevenue > 0 ? (monthlyProfit.total / totalRevenue) * 100 : 0;
-  const profitability = monthlyProfit.total - stats.monthlyExpenses; // Profitability calculation
+  const profitability = monthlyProfit.total - stats.monthlyExpenses;
 
   const handleExportAll = () => {
     const success = exportAllProfitsToExcel(sales, products, services, records, undefined, startDate, endDate);
@@ -215,7 +312,7 @@ function Dashboard() {
             <div className="mt-4 flex justify-between items-center">
               <span className="text-sm font-semibold text-gray-700">Total:</span>
               <span className="text-xl font-bold text-blue-600">
-                {formatMoney(stats.monthlySales + stats.monthlyPrintingRevenue)}
+                {formatMoney(totalRevenue)}
               </span>
             </div>
             <Link

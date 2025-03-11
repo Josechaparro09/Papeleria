@@ -36,8 +36,10 @@ const Invoice = () => {
   const getItemName = (item: SaleItem) => {
     if (item.product_id) {
       const product = products.find(p => p.id === item.product_id);
+
       return product ? product.name : 'Producto no encontrado';
     } else if (item.service_id) {
+
       const service = services.find(s => s.id === item.service_id);
       return service ? service.name : 'Servicio no encontrado';
     }
@@ -79,19 +81,19 @@ const Invoice = () => {
           <div className="border-b pb-3">
             <div className="flex justify-between items-start">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">PAPELERÍA XYZ</h1>
+                <h1 className="text-2xl font-bold text-gray-900">PAPELERÍA X&Z</h1>
                 <div className="mt-1 space-y-0.5 text-gray-600 text-sm">
                   <div className="flex items-center">
                     <Building2 className="w-4 h-4 mr-2" />
-                    <span>NIT: XXX-XXX-XXX</span>
+                    <span>NIT: 1221965504</span>
                   </div>
                   <div className="flex items-center">
                     <MapPin className="w-4 h-4 mr-2" />
-                    <span>[Tu dirección aquí]</span>
+                    <span>MZ 1 CASA 13 POPULANDIA</span>
                   </div>
                   <div className="flex items-center">
                     <Phone className="w-4 h-4 mr-2" />
-                    <span>[Tu teléfono aquí]</span>
+                    <span>3005203761</span>
                   </div>
                 </div>
               </div>
@@ -183,7 +185,7 @@ const Invoice = () => {
           <div className="mt-auto pt-3 border-t">
             <div className="text-center text-gray-600">
               <p className="font-medium text-sm">¡Gracias por su compra!</p>
-              <p className="text-xs">Este documento sirve como comprobante de pago</p>
+              <p className="text-xs">Este documento sirve como comprobante de pago </p>
             </div>
           </div>
         </div>

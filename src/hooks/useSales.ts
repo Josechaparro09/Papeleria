@@ -54,7 +54,7 @@ export function useSales() {
     saleData: {
       date: string;
       total: number;
-      type: 'product' | 'service';
+      type: 'product' | 'service' | 'mixed';
       customer_name?: string | null;
       payment_method?: string | null;
     }, 
@@ -107,9 +107,13 @@ export function useSales() {
 
       if (itemsError) throw itemsError;
 
-      // Update product stock if sale is for products
-      if (saleData.type === 'product') {
-        await updateProductStock(items);
+      // Update product stock if sale contains products
+      if (saleData.type === 'product' || saleData.type === 'mixed') {
+        // Filter only items with product_id
+        const productItems = items.filter(item => item.product_id);
+        if (productItems.length > 0) {
+          await updateProductStock(productItems);
+        }
       }
 
       // Refresh sales list
