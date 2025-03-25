@@ -143,22 +143,7 @@ function Layout({ children }: { children: React.ReactNode }) {
               <h1 className="ml-2 text-xl font-bold text-blue-600">Multiservicios S&M</h1>
             </div>
           </div>
-          
-          {/* Barra de búsqueda central */}
-          <div className="hidden md:flex flex-1 max-w-xl mx-8">
-            <div className="relative w-full">
-              <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
-                <Search className="text-gray-500" size={18} />
-              </div>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Buscar productos, ventas, servicios..."
-                className="w-full py-2 pl-10 pr-4 bg-gray-100 border-gray-200 rounded-full text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-          </div>
+
           
           {/* Menú de usuario */}
           <div className="relative">

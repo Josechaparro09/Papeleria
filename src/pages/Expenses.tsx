@@ -544,8 +544,7 @@ function Expenses() {
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex items-center justify-end text-sm font-medium text-rose-600">
-                              <BadgeDollarSign className="h-4 w-4 mr-1 text-rose-500" />
-                              {expense.amount.toFixed(2)}
+                              {formatMoney(expense.amount)}
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right">

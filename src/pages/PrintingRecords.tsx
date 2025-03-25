@@ -299,19 +299,7 @@ function PrintingRecords() {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="mb-8 max-w-lg mx-auto">
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500" size={20} />
-          <input
-            type="text"
-            placeholder="Buscar por fecha o ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-12 pr-4 py-3 w-full border border-gray-300 rounded-xl bg-white shadow-md focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
-          />
-        </div>
-      </div>
+    
 
       {/* Records List */}
       <div className="space-y-4">
