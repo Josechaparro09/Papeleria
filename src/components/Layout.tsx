@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { usePermissions } from '../hooks/usePermissions';
 import {
   LayoutDashboard,
   Package,
@@ -19,9 +20,12 @@ import {
   Settings,
   HelpCircle,
   Search,
-  Smartphone
+  Smartphone,
+  Clock,
+  Palette
 } from 'lucide-react';
 import clsx from 'clsx';
+import FloatingCashRegister from './FloatingCashRegister';
 
 interface NavItemProps {
   to: string;
@@ -50,9 +54,26 @@ const NavItem = ({ to, icon, label, active, onClick }: NavItemProps) => (
   </Link>
 );
 
+// Mapeo de iconos para los módulos
+const getModuleIcon = (moduleName: string) => {
+  const iconMap: Record<string, React.ReactNode> = {
+    'dashboard': <LayoutDashboard size={20} />,
+    'products': <Package size={20} />,
+    'sales': <Receipt size={20} />,
+    'expenses': <DollarSign size={20} />,
+    'printing': <Printer size={20} />,
+    'services': <Wrench size={20} />,
+    'recharges': <Smartphone size={20} />,
+    'history': <Clock size={20} />,
+    'sublimation': <Palette size={20} />
+  };
+  return iconMap[moduleName] || <Package size={20} />;
+};
+
 function Layout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { user, signOut } = useAuth();
+  const { permissions, loading: permissionsLoading, canAccessModule } = usePermissions(user?.id);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -102,16 +123,33 @@ function Layout({ children }: { children: React.ReactNode }) {
     setIsUserMenuOpen(!isUserMenuOpen);
   };
 
-  const navigation = [
-    { to: '/', icon: <LayoutDashboard size={20} />, label: 'Dashboard' },
-    { to: '/products', icon: <Package size={20} />, label: 'Inventario' },
-    { to: '/sales', icon: <Receipt size={20} />, label: 'Ventas' },
-    { to: '/expenses', icon: <DollarSign size={20} />, label: 'Gastos' },
-    { to: '/printing', icon: <Printer size={20} />, label: 'Impresiones' },
-    { to: '/services', icon: <Wrench size={20} />, label: 'Servicios' },
-    { to: '/recharges', icon: <Smartphone size={20} />, label: 'Recargas' },
-    { to: '/history', icon: <Receipt size={20} />, label: 'Historial de cierres' },
-  ];
+  // Crear navegación basada en permisos
+  const getNavigationItems = () => {
+    if (permissionsLoading) return [];
+    
+    return permissions.modules
+      .filter(module => canAccessModule(module.name))
+      .map(module => ({
+        to: module.route,
+        icon: getModuleIcon(module.name),
+        label: module.display_name,
+        moduleName: module.name
+      }));
+  };
+
+  const navigation = getNavigationItems();
+
+  // Mostrar loading mientras se cargan los permisos
+  if (permissionsLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Cargando permisos...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -164,6 +202,7 @@ function Layout({ children }: { children: React.ReactNode }) {
               <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-1 z-50 border border-gray-200">
                 <div className="px-4 py-2 border-b border-gray-200">
                   <p className="text-sm font-medium text-gray-900 truncate">{user?.email}</p>
+                  <p className="text-xs text-gray-500">Rol: {permissions.userRole?.name || 'user'}</p>
                 </div>
                 <div className="py-1">
                   <Link to="/profile" className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100" onClick={() => setIsUserMenuOpen(false)}>
@@ -305,6 +344,7 @@ function Layout({ children }: { children: React.ReactNode }) {
               <div>
                 <p className="text-sm font-medium text-gray-900">{user?.email?.split('@')[0]}</p>
                 <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+                <p className="text-xs text-blue-600">Rol: {permissions.userRole?.name || 'user'}</p>
               </div>
             </div>
           </div>
@@ -340,6 +380,9 @@ function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </main>
       </div>
+      
+      {/* Caja flotante */}
+      <FloatingCashRegister />
     </div>
   );
 }

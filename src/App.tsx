@@ -11,6 +11,7 @@ import PrintingRecords from './pages/PrintingRecords';
 import Services from './pages/Services';
 import Recharges from './pages/Recharges'; // Importar la nueva página
 import Invoice from './pages/Invoice'; // Importar la página de facturas
+import Sublimation from './pages/Sublimation'; // Importar la página de sublimación
 import Layout from './components/Layout';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
@@ -141,10 +142,18 @@ function App() {
             }
           />
           <Route
-            path="/history"
+            path="/recharge_history"
             element={
               <ProtectedRoute>
                 <RechargeHistory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sublimations"
+            element={
+              <ProtectedRoute>
+                <Sublimation />
               </ProtectedRoute>
             }
           />
@@ -166,3 +175,5 @@ function App() {
 }
 
 export default App;
+
+

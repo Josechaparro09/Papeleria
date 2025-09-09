@@ -8,8 +8,10 @@ import {
   ArrowRight,
   Clock,
   TrendingUp,
+  Minus,
+  Palette,
 } from "lucide-react";
-import { useDashboard } from "../hooks/useDashboard";
+import { useDashboardWithCash } from "../hooks/useDashboardWithCash";
 import { useSales } from "../hooks/useSales";
 import { useProducts } from "../hooks/useProducts";
 import { useServices } from "../hooks/useServices";
@@ -18,17 +20,16 @@ import { useExpenses } from "../hooks/useExpenses";
 import { Link } from "react-router-dom";
 import formatMoney from "../utils/format";
 import { exportAllProfitsToExcel } from "../utils/excelExport";
-import { format, subDays, startOfWeek, startOfMonth } from "date-fns";
+import { format, startOfWeek, startOfMonth } from "date-fns";
 import { es } from "date-fns/locale";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { toLocalDate } from "../utils/dateHelper";
 import type { Sale } from "../types/database";
 
 function Dashboard() {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [filterType, setFilterType] = useState<string>("month");
-  const { stats, loading } = useDashboard(startDate, endDate);
+  const { stats, loading } = useDashboardWithCash(startDate, endDate);
   const { sales } = useSales();
   const { products } = useProducts();
   const { services } = useServices();
@@ -445,6 +446,87 @@ function Dashboard() {
           </div>
         </div>
       )}
+
+      {/* Sección de Caja General */}
+      <div className="mt-8">
+        <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center">
+          <DollarSign className="mr-3 text-green-600" size={28} />
+          Estado de Caja General
+        </h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Estado de Caja */}
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+              <div className={`w-3 h-3 rounded-full mr-2 ${stats.cashRegisterOpen ? 'bg-green-500' : 'bg-red-500'}`}></div>
+              Estado de Caja
+            </h3>
+            <p className="text-2xl font-bold text-gray-900 mb-2">
+              {stats.cashRegisterOpen ? 'Abierta' : 'Cerrada'}
+            </p>
+            <p className="text-sm text-gray-500">
+              {stats.cashRegisterOpen ? 'Caja operativa' : 'Caja no disponible'}
+            </p>
+          </div>
+
+          {/* Balance Actual */}
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+              <DollarSign className="mr-2 text-blue-600" size={20} />
+              Balance Actual
+            </h3>
+            <p className="text-2xl font-bold text-blue-600 mb-2">
+              {formatMoney(stats.currentBalance)}
+            </p>
+            <p className="text-sm text-gray-500">
+              Saldo disponible en caja
+            </p>
+          </div>
+
+          {/* Ventas de Hoy */}
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+              <BarChart3 className="mr-2 text-green-600" size={20} />
+              Ventas de Hoy
+            </h3>
+            <p className="text-2xl font-bold text-green-600 mb-2">
+              {formatMoney(stats.dailySales)}
+            </p>
+            <p className="text-sm text-gray-500">
+              Ingresos del día
+            </p>
+          </div>
+
+          {/* Recargas de Hoy */}
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center mb-4">
+              <Minus className="mr-2 text-red-600" size={20} />
+              Recargas de Hoy
+            </h3>
+            <p className="text-2xl font-bold text-red-600 mb-2">
+              {formatMoney(stats.todayRecharges)}
+            </p>
+            <p className="text-sm text-gray-500">
+              Egresos del día
+            </p>
+          </div>
+        </div>
+
+        {/* Información adicional de sublimación */}
+        {stats.todaySublimationSales > 0 && (
+          <div className="mt-6 bg-gradient-to-r from-purple-50 to-pink-50 p-6 rounded-lg border border-purple-200">
+            <h3 className="text-lg font-semibold text-purple-900 flex items-center mb-2">
+              <Palette className="mr-2 text-purple-600" size={20} />
+              Ventas de Sublimación Hoy
+            </h3>
+            <p className="text-2xl font-bold text-purple-600">
+              {formatMoney(stats.todaySublimationSales)}
+            </p>
+            <p className="text-sm text-purple-700">
+              Ingresos adicionales por servicios de sublimación
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
