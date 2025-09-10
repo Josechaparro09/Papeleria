@@ -5,7 +5,6 @@ import { useState, useEffect } from "react"
 import {
 	ShoppingCart,
 	Plus,
-	Pencil,
 	Trash2,
 	X,
 	Search,
@@ -16,19 +15,40 @@ import {
 	AlertCircle,
 	Eye
 } from "lucide-react"
-import type { SublimationSale } from "../types/database"
+import type { Sale } from "../types/database"
 import formatMoney from "../utils/format"
-import { useSublimationSalesWithCash } from "../hooks/useSublimationSalesWithCash"
+import { useUniversalSales } from "../hooks/useUniversalSales"
+import { supabase } from "../lib/supabase"
+import toast from "react-hot-toast"
 
 function SublimationSales() {
 	const {
 		sales,
-		services,
 		loading,
 		error,
 		addSale: addSaleToDB,
 		deleteSale: deleteSaleFromDB
-	} = useSublimationSalesWithCash()
+	} = useUniversalSales()
+
+	// Obtener servicios de sublimación por separado
+	const [services, setServices] = useState<any[]>([])
+	
+	useEffect(() => {
+		async function fetchServices() {
+			try {
+				const { data, error } = await supabase
+					.from('sublimation_services')
+					.select('*')
+					.order('name')
+				
+				if (error) throw error
+				setServices(data || [])
+			} catch (err) {
+				console.error('Error fetching services:', err)
+			}
+		}
+		fetchServices()
+	}, [])
 
 	// Debug logs
 	console.log('SublimationSales - Sales:', sales)
@@ -38,7 +58,7 @@ function SublimationSales() {
 	const [showAddModal, setShowAddModal] = useState(false)
 	// const [showEditModal, setShowEditModal] = useState(false)
 	const [showDetailsModal, setShowDetailsModal] = useState(false)
-	const [currentSale, setCurrentSale] = useState<SublimationSale | null>(null)
+	const [currentSale, setCurrentSale] = useState<Sale | null>(null)
 	
 	const [formData, setFormData] = useState({
 		service_id: "",
@@ -53,24 +73,30 @@ function SublimationSales() {
 
 	// Search and filter state
 	const [searchTerm, setSearchTerm] = useState("")
-	const [sortField, setSortField] = useState<keyof SublimationSale>("date")
+	const [sortField, setSortField] = useState<keyof Sale>("date")
 	const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc")
-	const [filteredSales, setFilteredSales] = useState<SublimationSale[]>([])
+	const [filteredSales, setFilteredSales] = useState<Sale[]>([])
 
 	// Apply filters and search
 	useEffect(() => {
-		let result = [...sales]
+		// Filtrar solo ventas de sublimación
+		let result = sales.filter(sale => 
+			sale.items?.some(item => item.item_type === 'sublimation')
+		)
 
 		// Apply search
 		if (searchTerm) {
 			const lowerSearchTerm = searchTerm.toLowerCase()
 			result = result.filter(
 				(sale) =>
-					sale.service?.name.toLowerCase().includes(lowerSearchTerm) ||
-					sale.notes?.toLowerCase().includes(lowerSearchTerm)
+					sale.items?.some(item => 
+						item.item_name.toLowerCase().includes(lowerSearchTerm) ||
+						item.description?.toLowerCase().includes(lowerSearchTerm)
+					) ||
+					sale.notes?.toLowerCase().includes(lowerSearchTerm) ||
+					sale.customer_name?.toLowerCase().includes(lowerSearchTerm)
 			)
 		}
-
 
 		// Apply sorting
 		result.sort((a, b) => {
@@ -105,13 +131,14 @@ function SublimationSales() {
 		
 		const quantity = Number.parseInt(formData.quantity) || 0
 		const discount = Number.parseFloat(formData.discount) || 0
-		const subtotal = selectedService.base_price * quantity
+		const unitPrice = selectedService.base_price + selectedService.sublimation_cost
+		const subtotal = unitPrice * quantity
 		return subtotal - discount
 	}
 
 	// Calcular vueltos para efectivo
 	const calculateChange = () => {
-		if (formData.payment_method !== "efectivo") return 0
+		if (formData.payment_method !== "Efectivo") return 0
 		const total = calculateTotal()
 		const paid = Number.parseFloat(formData.amount_paid) || 0
 		return Math.max(0, paid - total)
@@ -135,22 +162,22 @@ function SublimationSales() {
 		setShowAddModal(true)
 	}
 
-	const openEditModal = (sale: SublimationSale) => {
-		setCurrentSale(sale)
-		setFormData({
-			service_id: sale.service_id,
-			quantity: sale.quantity.toString(),
-			unit_price: sale.unit_price.toString(),
-			discount: sale.discount?.toString() || "",
-			payment_method: sale.payment_method || "Efectivo",
-			amount_paid: sale.amount_paid?.toString() || "",
-			customer_name: sale.customer_name || "",
-			notes: sale.notes || ""
-		})
-		// setShowEditModal(true)
-	}
+	// const openEditModal = (sale: Sale) => {
+	// 	setCurrentSale(sale)
+	// 	setFormData({
+	// 		service_id: sale.service_id,
+	// 		quantity: sale.quantity.toString(),
+	// 		unit_price: sale.unit_price.toString(),
+	// 		discount: sale.discount?.toString() || "",
+	// 		payment_method: sale.payment_method || "Efectivo",
+	// 		amount_paid: sale.amount_paid?.toString() || "",
+	// 		customer_name: sale.customer_name || "",
+	// 		notes: sale.notes || ""
+	// 	})
+	// 	// setShowEditModal(true)
+	// }
 
-	const openDetailsModal = (sale: SublimationSale) => {
+	const openDetailsModal = (sale: Sale) => {
 		setCurrentSale(sale)
 		setShowDetailsModal(true)
 	}
@@ -158,21 +185,40 @@ function SublimationSales() {
 	const handleAddSale = async (e: React.FormEvent) => {
 		e.preventDefault()
 		try {
-			const total = calculateTotal()
+			const selectedService = services.find(s => s.id === formData.service_id)
+			if (!selectedService) {
+				toast.error('Servicio no encontrado')
+				return
+			}
+
+			const quantity = Number.parseInt(formData.quantity)
+			const unitPrice = selectedService.base_price + selectedService.sublimation_cost
+			const subtotal = quantity * unitPrice
+			const discount = Number.parseFloat(formData.discount) || 0
+			// const total = subtotal - discount
+
 			await addSaleToDB({
 				date: new Date().toISOString().split('T')[0],
-				service_id: formData.service_id,
-				quantity: Number.parseInt(formData.quantity),
-				unit_price: calculateTotal() / Number.parseInt(formData.quantity), // Precio unitario calculado
-				total: total,
-				status: 'completed', // Siempre completado
-				payment_method: formData.payment_method as 'Efectivo' | 'Tarjeta de crédito' | 'Tarjeta de débito' | 'Transferencia' | 'Otro',
+				subtotal: subtotal,
+				discount: discount,
+				tax: 0,
 				customer_name: formData.customer_name || undefined,
-				discount: Number.parseFloat(formData.discount) || 0,
+				customer_phone: undefined,
+				customer_email: undefined,
+				payment_method: formData.payment_method as 'Efectivo' | 'Tarjeta de crédito' | 'Tarjeta de débito' | 'Transferencia' | 'Otro',
 				amount_paid: Number.parseFloat(formData.amount_paid) || 0,
 				change_amount: calculateChange(),
+				status: 'completed',
 				notes: formData.notes || undefined
-			})
+			}, [{
+				item_type: 'sublimation',
+				sublimation_service_id: formData.service_id,
+				item_name: selectedService.name,
+				description: selectedService.description,
+				quantity: quantity,
+				unit_price: unitPrice
+			}])
+			
 			setShowAddModal(false)
 			resetForm()
 		} catch (error) {
@@ -217,7 +263,7 @@ function SublimationSales() {
 	// 	}
 	// }
 
-	const handleSort = (field: keyof SublimationSale) => {
+	const handleSort = (field: keyof Sale) => {
 		if (sortField === field) {
 			setSortDirection(sortDirection === "asc" ? "desc" : "asc")
 		} else {
@@ -248,13 +294,14 @@ function SublimationSales() {
 
 	const getStatusLabel = (status: string) => {
 		switch (status) {
-			case 'completed': return 'Completada'
+			case 'completed': return 'Completado'
 			case 'in_progress': return 'En Proceso'
 			case 'pending': return 'Pendiente'
-			case 'cancelled': return 'Cancelada'
-			default: return status
+			case 'cancelled': return 'Cancelado'
+			default: return 'Desconocido'
 		}
 	}
+
 
 	const totalRevenue = filteredSales.reduce((sum, sale) => sum + sale.total, 0)
 	const pendingSales = filteredSales.filter(s => s.status === 'pending').length
@@ -387,20 +434,22 @@ function SublimationSales() {
 							</tr>
 						</thead>
 						<tbody className="bg-white divide-y divide-gray-200">
-							{filteredSales.map((sale) => (
+							{filteredSales.map((sale) => {
+								const sublimationItem = sale.items?.find(item => item.item_type === 'sublimation')
+								return (
 								<tr key={sale.id} className="hover:bg-gray-50 transition-colors">
 									<td className="px-6 py-4">
-										<div className="text-sm text-gray-900">{sale.service?.name || 'Servicio no encontrado'}</div>
+										<div className="text-sm text-gray-900">{sublimationItem?.item_name || 'Servicio no encontrado'}</div>
 										{sale.notes && (
 											<div className="text-xs text-gray-500 truncate max-w-xs">{sale.notes}</div>
 										)}
 									</td>
 									<td className="px-6 py-4">
-										<span className="text-sm font-medium text-gray-900">{sale.quantity}</span>
+										<span className="text-sm font-medium text-gray-900">{sublimationItem?.quantity || 0}</span>
 									</td>
 									<td className="px-6 py-4">
 										<div className="text-sm font-medium text-gray-900">{formatMoney(sale.total)}</div>
-										<div className="text-xs text-gray-500">{formatMoney(sale.unit_price)} c/u</div>
+										<div className="text-xs text-gray-500">{formatMoney(sublimationItem?.unit_price || 0)} c/u</div>
 									</td>
 									<td className="px-6 py-4">
 										<div className="text-sm text-gray-900">{new Date(sale.date).toLocaleDateString()}</div>
@@ -414,13 +463,13 @@ function SublimationSales() {
 											>
 												<Eye size={16} />
 											</button>
-											<button
+											{/* <button
 												onClick={() => openEditModal(sale)}
 												className="p-1 rounded-md text-green-600 hover:bg-green-50 transition-colors"
 												title="Editar venta"
 											>
 												<Pencil size={16} />
-											</button>
+											</button> */}
 											<button
 												onClick={() => handleDeleteSale(sale.id)}
 												className="p-1 rounded-md text-red-600 hover:bg-red-50 transition-colors"
@@ -431,7 +480,8 @@ function SublimationSales() {
 										</div>
 									</td>
 								</tr>
-							))}
+								)
+							})}
 						</tbody>
 					</table>
 				</div>
@@ -663,10 +713,17 @@ function SublimationSales() {
 							<div>
 								<h4 className="text-sm font-medium text-gray-700 mb-2">Detalles del Servicio</h4>
 								<div className="bg-gray-50 rounded-lg p-3 space-y-2">
-									<div className="text-sm text-gray-900">{currentSale.service?.name || 'Servicio no encontrado'}</div>
-									<div className="text-sm text-gray-600">Cantidad: {currentSale.quantity}</div>
-									<div className="text-sm text-gray-600">Precio unitario: {formatMoney(currentSale.unit_price)}</div>
-									<div className="text-sm font-medium text-gray-900">Total: {formatMoney(currentSale.total)}</div>
+									{(() => {
+										const sublimationItem = currentSale.items?.find(item => item.item_type === 'sublimation')
+										return (
+											<>
+												<div className="text-sm text-gray-900">{sublimationItem?.item_name || 'Servicio no encontrado'}</div>
+												<div className="text-sm text-gray-600">Cantidad: {sublimationItem?.quantity || 0}</div>
+												<div className="text-sm text-gray-600">Precio unitario: {formatMoney(sublimationItem?.unit_price || 0)}</div>
+												<div className="text-sm font-medium text-gray-900">Total: {formatMoney(currentSale.total)}</div>
+											</>
+										)
+									})()}
 								</div>
 							</div>
 							{currentSale.notes && (

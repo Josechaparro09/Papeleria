@@ -81,6 +81,7 @@ export interface Sale {
   type: 'product' | 'service' | 'mixed';
   customer_name?: string | null;
   payment_method?: string | null;
+  cash_register_id?: string | null; // Relación con la caja abierta
   items?: SaleItem[]; // items es opcional porque no es una columna real
   created_at: string;
 }

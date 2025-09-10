@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { Sale, SaleItem, Product, Service } from '../types/database';
+import { Sale, SaleItem, SublimationSaleProduct, Product, Service, SublimationService } from '../types/database';
 import toast from 'react-hot-toast';
-import { normalizeToISODate } from '../utils/dateHelper';
 
 // Métodos de pago predefinidos
 export const PAYMENT_METHODS = [
@@ -13,7 +12,7 @@ export const PAYMENT_METHODS = [
   'Otro'
 ];
 
-export function useSales() {
+export function useUniversalSales() {
   const [sales, setSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -38,8 +37,6 @@ export function useSales() {
         `)
         .order('date', { ascending: false });
 
-      console.log('Sales:', data);
-
       if (error) throw error;
       setSales(data || []);
     } catch (err) {
@@ -58,81 +55,65 @@ export function useSales() {
   async function addSale(
     saleData: {
       date: string;
-      total: number;
-      type: 'product' | 'service' | 'mixed';
-      customer_name?: string | null;
-      payment_method?: string | null;
-    }, 
+      subtotal: number;
+      discount?: number;
+      tax?: number;
+      customer_name?: string;
+      customer_phone?: string;
+      customer_email?: string;
+      payment_method?: 'Efectivo' | 'Tarjeta de crédito' | 'Tarjeta de débito' | 'Transferencia' | 'Otro';
+      amount_paid?: number;
+      change_amount?: number;
+      status?: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+      notes?: string;
+    },
     items: {
+      item_type: 'product' | 'service' | 'sublimation';
       product_id?: string;
       service_id?: string;
+      sublimation_service_id?: string;
+      item_name: string;
+      description?: string;
       quantity: number;
-      price: number;
+      unit_price: number;
     }[]
   ) {
     try {
-      // La fecha ya viene en formato YYYY-MM-DD desde el componente
-      const normalizedDate = saleData.date;
-      
-      // Calcular subtotal (sin descuentos por ahora)
-      const subtotal = saleData.total;
-      
-      // Prepare sale data for new universal structure
-      const preparedSaleData = {
-        date: normalizedDate,
-        total: saleData.total,
-        subtotal: subtotal,
-        discount: 0,
-        tax: 0,
-        customer_name: saleData.customer_name || null,
-        customer_phone: null,
-        customer_email: null,
-        payment_method: saleData.payment_method || null,
-        amount_paid: null,
-        change_amount: null,
-        status: 'completed' as const,
-        notes: null
-      };
+      // Calcular total
+      const total = saleData.subtotal - (saleData.discount || 0) + (saleData.tax || 0);
 
+      // Crear la venta
       const { data: sale, error: saleError } = await supabase
         .from('sales')
-        .insert([preparedSaleData])
+        .insert([{
+          ...saleData,
+          total,
+          status: saleData.status || 'completed'
+        }])
         .select()
         .single();
 
       if (saleError) throw saleError;
 
-      // Prepare items data for new structure
-      const itemsWithSaleId = items.map(item => {
-        // Determinar el tipo de item basado en qué ID está presente
-        const item_type = item.product_id ? 'product' : 'service';
-        
-        return {
-          sale_id: sale.id,
-          item_type: item_type,
-          product_id: item.product_id || null,
-          service_id: item.service_id || null,
-          sublimation_service_id: null,
-          item_name: 'Item', // Se puede mejorar obteniendo el nombre real
-          description: null,
-          quantity: item.quantity,
-          unit_price: item.price,
-          subtotal: item.quantity * item.price
-        };
-      });
+      // Crear los items de la venta
+      const itemsWithSaleId = items.map(item => ({
+        ...item,
+        sale_id: sale.id,
+        subtotal: item.quantity * item.unit_price
+      }));
 
-      const { error: itemsError } = await supabase
+      const { data: saleItems, error: itemsError } = await supabase
         .from('sale_items')
-        .insert(itemsWithSaleId);
+        .insert(itemsWithSaleId)
+        .select();
 
       if (itemsError) throw itemsError;
 
-      // Update local state
+      // Actualizar el estado local
       const newSale = {
         ...sale,
-        items: itemsWithSaleId.map(item => ({
+        items: saleItems.map(item => ({
           ...item,
-          id: '', // Will be generated automatically
           created_at: new Date().toISOString()
         }))
       };

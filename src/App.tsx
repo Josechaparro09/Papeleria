@@ -6,6 +6,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
 import Sales from './pages/Sales';
+import UnifiedSales from './components/UnifiedSales';
 import Expenses from './pages/Expenses';
 import PrintingRecords from './pages/PrintingRecords';
 import Services from './pages/Services';
@@ -102,6 +103,14 @@ function App() {
           />
           <Route
             path="/sales"
+            element={
+              <ProtectedRoute>
+                <UnifiedSales />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sales-old"
             element={
               <ProtectedRoute>
                 <Sales />

@@ -68,37 +68,20 @@ export function useSublimationSalesWithCash() {
 	// Agregar nueva venta
 	const addSale = async (saleData: Omit<SublimationSale, 'id' | 'created_at' | 'updated_at'>) => {
 		try {
-			// 1. Insertar en sublimation_sales
-			const { data: sublimationSale, error: sublimationError } = await supabase
+			const { data, error } = await supabase
 				.from('sublimation_sales')
 				.insert([saleData])
 				.select()
 				.single();
 
-			if (sublimationError) throw sublimationError;
-
-			// 2. Insertar en sales principal para integración con caja
-			const { error: salesError } = await supabase
-				.from('sales')
-				.insert([{
-					date: saleData.date,
-					total: saleData.total,
-					type: 'sublimation',
-					customer_name: saleData.customer_name || null,
-					payment_method: saleData.payment_method || null
-				}]);
-
-			if (salesError) {
-				console.error('Error inserting into sales table:', salesError);
-				// No lanzamos error aquí para no afectar la venta principal
-			}
+			if (error) throw error;
 
 			// Actualizar estadísticas de caja
 			await refreshStats();
 
-			setSales(prev => [sublimationSale, ...prev]);
+			setSales(prev => [data, ...prev]);
 			toast.success('Venta de sublimación registrada exitosamente');
-			return sublimationSale;
+			return data;
 		} catch (err) {
 			toast.error('Error al registrar la venta');
 			throw err;
@@ -108,7 +91,6 @@ export function useSublimationSalesWithCash() {
 	// Actualizar venta
 	const updateSale = async (id: string, updates: Partial<Omit<SublimationSale, 'id' | 'created_at' | 'updated_at'>>) => {
 		try {
-			// 1. Actualizar en sublimation_sales
 			const { data, error } = await supabase
 				.from('sublimation_sales')
 				.update(updates)
@@ -117,25 +99,6 @@ export function useSublimationSalesWithCash() {
 				.single();
 
 			if (error) throw error;
-
-			// 2. Actualizar en sales principal si hay cambios relevantes
-			if (updates.total || updates.date || updates.customer_name || updates.payment_method) {
-				const { error: salesError } = await supabase
-					.from('sales')
-					.update({
-						date: updates.date || data.date,
-						total: updates.total || data.total,
-						customer_name: updates.customer_name !== undefined ? updates.customer_name : data.customer_name,
-						payment_method: updates.payment_method || data.payment_method
-					})
-					.eq('type', 'sublimation')
-					.eq('date', data.date)
-					.eq('total', data.total);
-
-				if (salesError) {
-					console.error('Error updating sales table:', salesError);
-				}
-			}
 
 			setSales(prev => prev.map(sale => sale.id === id ? data : sale));
 			await refreshStats();
@@ -150,30 +113,12 @@ export function useSublimationSalesWithCash() {
 	// Eliminar venta
 	const deleteSale = async (id: string) => {
 		try {
-			// 1. Obtener datos de la venta antes de eliminar
-			const saleToDelete = sales.find(sale => sale.id === id);
-			
-			// 2. Eliminar de sublimation_sales
 			const { error } = await supabase
 				.from('sublimation_sales')
 				.delete()
 				.eq('id', id);
 
 			if (error) throw error;
-
-			// 3. Eliminar de sales principal si existe
-			if (saleToDelete) {
-				const { error: salesError } = await supabase
-					.from('sales')
-					.delete()
-					.eq('type', 'sublimation')
-					.eq('date', saleToDelete.date)
-					.eq('total', saleToDelete.total);
-
-				if (salesError) {
-					console.error('Error deleting from sales table:', salesError);
-				}
-			}
 
 			setSales(prev => prev.filter(sale => sale.id !== id));
 			await refreshStats();

@@ -1,5 +1,5 @@
 // src/components/FloatingCashRegister.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
 	Wallet,
 	DollarSign,
@@ -39,6 +39,14 @@ function FloatingCashRegister() {
 	const [openingBalance, setOpeningBalance] = useState('');
 	const [closingBalance, setClosingBalance] = useState('');
 	const [rechargeData, setRechargeData] = useState({ description: '', amount: '' });
+
+	// Refrescar estadísticas cuando el componente se monta
+	useEffect(() => {
+		if (isOpen && cashRegister) {
+			console.log('Componente de caja montado, refrescando estadísticas...');
+			refreshStats();
+		}
+	}, [isOpen, cashRegister, refreshStats]);
 
 	const handleOpenCash = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -95,7 +103,7 @@ function FloatingCashRegister() {
 	return (
 		<>
 			{/* Botón flotante principal */}
-			<div className="fixed bottom-4 right-4 z-50">
+			<div className="fixed bottom-4 right-4 z-50 max-w-sm w-full">
 				<div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
 					{/* Header compacto */}
 					<div 
@@ -119,93 +127,176 @@ function FloatingCashRegister() {
 						</div>
 					</div>
 
-					{/* Contenido expandido */}
+					{/* Contenido expandido - Compacto y organizado */}
 					{isExpanded && (
-						<div className="border-t border-gray-200 p-4 space-y-4">
-							{/* Estadísticas */}
-							<div className="grid grid-cols-2 gap-3 text-sm">
+						<div className="border-t border-gray-200 p-3 space-y-3 max-h-96 overflow-y-auto">
+							{/* Resumen principal compacto */}
+							<div className="grid grid-cols-2 gap-2 text-xs">
 								<div className="bg-green-50 p-2 rounded">
-									<div className="flex items-center space-x-1 text-green-700">
-										<TrendingUp className="h-4 w-4" />
-										<span className="font-medium">Ventas</span>
-									</div>
-									<div className="text-lg font-bold text-green-800">
+									<div className="text-green-700 font-medium">Total Ventas</div>
+									<div className="font-bold text-green-800 text-sm">
 										{formatMoney(stats.totalSales)}
 									</div>
 								</div>
 								<div className="bg-red-50 p-2 rounded">
-									<div className="flex items-center space-x-1 text-red-700">
-										<TrendingDown className="h-4 w-4" />
-										<span className="font-medium">Gastos</span>
-									</div>
-									<div className="text-lg font-bold text-red-800">
+									<div className="text-red-700 font-medium">Gastos</div>
+									<div className="font-bold text-red-800 text-sm">
 										{formatMoney(stats.totalExpenses)}
 									</div>
 								</div>
 							</div>
 
-							{/* Balance actual */}
-							<div className="bg-gray-50 p-3 rounded">
-								<div className="flex justify-between items-center">
-									<span className="text-sm text-gray-600">Balance Actual</span>
-									<span className="text-lg font-bold text-gray-900">
-										{formatMoney(stats.currentBalance)}
-									</span>
-								</div>
-								<div className="flex justify-between items-center mt-1">
-									<span className="text-xs text-gray-500">Apertura</span>
-									<span className="text-sm text-gray-700">
-										{formatMoney(stats.openingBalance)}
-									</span>
+							{/* Ventas por categoría - Compacto */}
+							<div className="space-y-1">
+								<div className="text-xs font-medium text-gray-600">Ventas</div>
+								<div className="grid grid-cols-2 gap-1 text-xs">
+									<div className="bg-blue-50 p-1.5 rounded">
+										<div className="text-blue-700">Productos</div>
+										<div className="font-bold text-blue-800">
+											{formatMoney(stats.productSales || 0)}
+										</div>
+									</div>
+									<div className="bg-green-50 p-1.5 rounded">
+										<div className="text-green-700">Servicios</div>
+										<div className="font-bold text-green-800">
+											{formatMoney(stats.serviceSales || 0)}
+										</div>
+									</div>
+									<div className="bg-purple-50 p-1.5 rounded">
+										<div className="text-purple-700">Sublimación</div>
+										<div className="font-bold text-purple-800">
+											{formatMoney(stats.sublimationSales || 0)}
+										</div>
+									</div>
+									<div className="bg-orange-50 p-1.5 rounded">
+										<div className="text-orange-700">Efectivo</div>
+										<div className="font-bold text-orange-800">
+											{formatMoney(stats.cashSales || 0)}
+										</div>
+									</div>
 								</div>
 							</div>
 
-							{/* Botones de acción */}
-							<div className="flex space-x-2">
+							{/* Recargas - Compacto */}
+							<div className="space-y-1">
+								<div className="text-xs font-medium text-gray-600">Recargas</div>
+								<div className="space-y-1 text-xs">
+									<div className="flex justify-between items-center bg-green-50 p-1.5 rounded">
+										<span className="text-green-700">Efectivo</span>
+										<span className="font-bold text-green-800">
+											{formatMoney(stats.cashRecharges || 0)}
+										</span>
+									</div>
+									<div className="flex justify-between items-center bg-blue-50 p-1.5 rounded">
+										<span className="text-blue-700">Transferencia</span>
+										<span className="font-bold text-blue-800">
+											{formatMoney(stats.transferRecharges || 0)}
+										</span>
+									</div>
+									<div className="flex justify-between items-center bg-purple-50 p-1.5 rounded">
+										<span className="text-purple-700">Otros</span>
+										<span className="font-bold text-purple-800">
+											{formatMoney(stats.otherRecharges || 0)}
+										</span>
+									</div>
+								</div>
+							</div>
+
+							{/* Balance detallado - Compacto */}
+							<div className="bg-gray-50 p-2 rounded space-y-1">
+								<div className="flex justify-between items-center">
+									<span className="text-xs text-gray-600">Balance Actual</span>
+									<span className="text-sm font-bold text-gray-900">
+										{formatMoney(stats.currentBalance)}
+									</span>
+								</div>
+								
+								{/* Desglose compacto */}
+								<div className="space-y-0.5 text-xs">
+									<div className="flex justify-between items-center">
+										<span className="text-gray-500">Inicial</span>
+										<span className="text-gray-700">
+											{formatMoney(stats.openingBalance)}
+										</span>
+									</div>
+									<div className="flex justify-between items-center">
+										<span className="text-gray-500">+ Ventas</span>
+										<span className="text-green-600">
+											+{formatMoney(stats.cashSales || 0)}
+										</span>
+									</div>
+									<div className="flex justify-between items-center">
+										<span className="text-gray-500">+ Recargas</span>
+										<span className="text-green-600">
+											+{formatMoney(stats.cashRecharges || 0)}
+										</span>
+									</div>
+									<div className="flex justify-between items-center">
+										<span className="text-gray-500">- Gastos</span>
+										<span className="text-red-600">
+											-{formatMoney(stats.totalExpenses)}
+										</span>
+									</div>
+								</div>
+
+								{cashRegister && (
+									<div className="flex justify-between items-center pt-1 border-t text-xs text-gray-500">
+										<span>ID: {cashRegister.id.slice(0, 6)}...</span>
+										<span>{new Date(cashRegister.created_at).toLocaleTimeString()}</span>
+									</div>
+								)}
+							</div>
+
+							{/* Botones de acción - Compactos */}
+							<div className="flex space-x-1">
 								{!isOpen ? (
 									<button
 										onClick={() => setShowOpenModal(true)}
-										className="flex-1 bg-green-600 text-white px-3 py-2 rounded text-sm font-medium hover:bg-green-700 transition-colors flex items-center justify-center space-x-1"
+										className="flex-1 bg-green-600 text-white px-2 py-1.5 rounded text-xs font-medium hover:bg-green-700 transition-colors flex items-center justify-center space-x-1"
 									>
-										<Unlock className="h-4 w-4" />
-										<span>Abrir Caja</span>
+										<Unlock className="h-3 w-3" />
+										<span>Abrir</span>
 									</button>
 								) : (
 									<>
 										<button
 											onClick={() => setShowRechargeModal(true)}
-											className="flex-1 bg-blue-600 text-white px-3 py-2 rounded text-sm font-medium hover:bg-blue-700 transition-colors flex items-center justify-center space-x-1"
+											className="flex-1 bg-blue-600 text-white px-2 py-1.5 rounded text-xs font-medium hover:bg-blue-700 transition-colors flex items-center justify-center space-x-1"
 										>
-											<Plus className="h-4 w-4" />
+											<Plus className="h-3 w-3" />
 											<span>Recarga</span>
 										</button>
 										<button
 											onClick={() => setShowCloseModal(true)}
-											className="flex-1 bg-red-600 text-white px-3 py-2 rounded text-sm font-medium hover:bg-red-700 transition-colors flex items-center justify-center space-x-1"
+											className="flex-1 bg-red-600 text-white px-2 py-1.5 rounded text-xs font-medium hover:bg-red-700 transition-colors flex items-center justify-center space-x-1"
 										>
-											<Lock className="h-4 w-4" />
+											<Lock className="h-3 w-3" />
 											<span>Cerrar</span>
 										</button>
 									</>
 								)}
 								<button
-									onClick={refreshStats}
-									className="bg-gray-600 text-white px-3 py-2 rounded text-sm font-medium hover:bg-gray-700 transition-colors"
+									onClick={() => {
+										console.log('Actualización manual de caja...');
+										refreshStats();
+									}}
+									className="bg-gray-600 text-white px-2 py-1.5 rounded text-xs font-medium hover:bg-gray-700 transition-colors flex items-center justify-center"
+									title="Actualizar datos de caja"
 								>
-									<RefreshCw className="h-4 w-4" />
+									<RefreshCw className="h-3 w-3" />
 								</button>
 							</div>
 
-							{/* Transacciones recientes */}
+							{/* Transacciones recientes - Compacto */}
 							{transactions.length > 0 && (
-								<div className="space-y-2">
+								<div className="space-y-1">
 									<div className="text-xs font-medium text-gray-600">Recargas Recientes</div>
-									<div className="max-h-20 overflow-y-auto space-y-1">
-										{transactions.slice(0, 3).map((transaction) => (
-											<div key={transaction.id} className="flex justify-between items-center text-xs bg-gray-50 p-2 rounded">
-												<span className="truncate">{transaction.description}</span>
-												<span className="font-medium text-red-600">
-													-{formatMoney(transaction.amount)}
+									<div className="max-h-16 overflow-y-auto space-y-0.5">
+										{transactions.slice(0, 2).map((transaction) => (
+											<div key={transaction.id} className="flex justify-between items-center text-xs bg-gray-50 p-1.5 rounded">
+												<span className="truncate text-gray-700">{transaction.description}</span>
+												<span className="font-medium text-green-600">
+													+{formatMoney(transaction.amount)}
 												</span>
 											</div>
 										))}
